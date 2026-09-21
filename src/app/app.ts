@@ -1,17 +1,18 @@
 import { Component, OnInit } from '@angular/core';
-import { RouterOutlet } from '@angular/router'; // 1. Importación obligatoria para las rutas
+import { RouterOutlet, Router } from '@angular/router'; // Inyectar Router
 import { MsalService } from '@azure/msal-angular';
 
 @Component({
   selector: 'app-root',
-  standalone: true, // Indica que es Standalone
-  imports: [RouterOutlet], // 2. Debes declarar RouterOutlet aquí
-  templateUrl: './app.html', // (o './app.component.html' según tu archivo)
-  styleUrls: ['./app.scss'] // (o './app.scss')
+  standalone: true,
+  imports: [RouterOutlet],
+  templateUrl: './app.html',
+  styleUrls: ['./app.scss']
 })
 export class AppComponent implements OnInit {
   
-  constructor(private msalService: MsalService) {}
+  // Agregamos private router: Router
+  constructor(private msalService: MsalService, private router: Router) {}
 
   ngOnInit(): void {
     this.msalService.instance.initialize().then(() => {
@@ -20,6 +21,8 @@ export class AppComponent implements OnInit {
           if (result && result.account) {
             this.msalService.instance.setActiveAccount(result.account);
             console.log('Login exitoso. Usuario:', result.account.username);
+            // Redirección automática tras iniciar sesión
+            this.router.navigate(['/dashboard']); 
           }
         },
         error: (error) => console.error('Error procesando la redirección:', error)
