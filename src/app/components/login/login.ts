@@ -1,4 +1,5 @@
 import { Component } from '@angular/core';
+import { MsalService } from '@azure/msal-angular'; // Importamos el servicio
 
 @Component({
   selector: 'app-login',
@@ -7,15 +8,15 @@ import { Component } from '@angular/core';
 })
 export class LoginComponent {
 
-  constructor() { }
+  // Inyectamos el servicio de MSAL en el constructor
+  constructor(private msalService: MsalService) { }
 
   onMockLogin(): void {
-    alert('Este formulario es una maqueta. Posteriormente utilizaremos Microsoft Entra ID.');
+    alert('Por favor, utiliza el inicio de sesión oficial con Microsoft Entra ID.');
   }
 
   onMicrosoftLogin(): void {
-    // Aquí implementaremos posteriormente MSAL (MsalService.loginRedirect())
-    console.log('Iniciando redirección a Microsoft Entra ID...');
-    alert('Aquí se ejecutará la redirección de MSAL configurada para DigitalFix.');
+    // Esto ejecutará el flujo de redirección hacia Microsoft Entra ID[cite: 1]
+    this.msalService.loginRedirect();
   }
 }
