@@ -2,7 +2,6 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
-// Modelos basados exactamente en tus DTOs y Entidades de Spring Boot
 export interface TechnicalService {
   id?: number;
   name: string;
@@ -22,7 +21,6 @@ export interface SparePart {
 })
 export class CatalogService {
   private http = inject(HttpClient);
-  // URL base apuntando al BFF (puerto 8083)
   private baseUrl = 'http://localhost:8083/api/catalog';
 
   // --- SERVICIOS TÉCNICOS ---
@@ -34,6 +32,14 @@ export class CatalogService {
     return this.http.post<TechnicalService>(`${this.baseUrl}/services`, service);
   }
 
+  updateService(id: number, service: TechnicalService): Observable<TechnicalService> {
+    return this.http.put<TechnicalService>(`${this.baseUrl}/services/${id}`, service);
+  }
+
+  deleteService(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/services/${id}`);
+  }
+
   // --- REPUESTOS ---
   getSpareParts(): Observable<SparePart[]> {
     return this.http.get<SparePart[]>(`${this.baseUrl}/spare-parts`);
@@ -41,5 +47,13 @@ export class CatalogService {
 
   createSparePart(part: SparePart): Observable<SparePart> {
     return this.http.post<SparePart>(`${this.baseUrl}/spare-parts`, part);
+  }
+
+  updateSparePart(id: number, part: SparePart): Observable<SparePart> {
+    return this.http.put<SparePart>(`${this.baseUrl}/spare-parts/${id}`, part);
+  }
+
+  deleteSparePart(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/spare-parts/${id}`);
   }
 }

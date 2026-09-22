@@ -14,16 +14,25 @@ import { CatalogService, TechnicalService, SparePart } from '../../../services/c
 export class Catalog implements OnInit {
   private catalogService = inject(CatalogService);
   private msalService = inject(MsalService);
-  private cdr = inject(ChangeDetectorRef); // Para forzar el refresco visual inmediato
+  private cdr = inject(ChangeDetectorRef);
 
   userRole: string = '';
   services: TechnicalService[] = [];
   spareParts: SparePart[] = [];
 
+  // Modelos para formulario de nuevo registro
   newService: TechnicalService = { name: '', fee: 0, description: '' };
   newPart: SparePart = { name: '', cost: 0, stock: 0 };
 
+  // Control de edición en fila
+  editingService: TechnicalService | null = null;
+  editingPart: SparePart | null = null;
+
+  // Control del modal de confirmación de eliminación
+  itemToDelete: { id: number; name: string; type: 'service' | 'part' } | null = null;
+
   activeTab: 'services' | 'parts' = 'services';
+  mensajeExito: string = '';
 
   ngOnInit(): void {
     this.obtenerCuentaYRol();
@@ -34,11 +43,17 @@ export class Catalog implements OnInit {
     return this.userRole === 'ADMIN';
   }
 
-  // 1. Obtiene la cuenta de inmediato incluso al hacer F5
+  mostrarMensaje(texto: string): void {
+    this.mensajeExito = texto;
+    this.cdr.detectChanges();
+    setTimeout(() => {
+      this.mensajeExito = '';
+      this.cdr.detectChanges();
+    }, 3000);
+  }
+
   private obtenerCuentaYRol(): void {
     let account = this.msalService.instance.getActiveAccount();
-
-    // Si al recargar F5 está null, tomamos la cuenta logueada de la memoria
     if (!account) {
       const accounts = this.msalService.instance.getAllAccounts();
       if (accounts.length > 0) {
@@ -55,15 +70,12 @@ export class Catalog implements OnInit {
         next: (response) => {
           try {
             const payload = JSON.parse(atob(response.accessToken.split('.')[1]));
-            if (payload.roles && payload.roles.length > 0) {
-              this.userRole = payload.roles[0].toUpperCase();
-            } else {
-              this.userRole = 'ADMIN';
-            }
+            this.userRole = (payload.roles && payload.roles.length > 0) 
+              ? payload.roles[0].toUpperCase() 
+              : 'ADMIN';
           } catch {
             this.userRole = 'ADMIN';
           }
-          // Refrescamos la pantalla para mostrar "ADMIN" de inmediato
           this.cdr.detectChanges();
         },
         error: () => {
@@ -81,7 +93,7 @@ export class Catalog implements OnInit {
     this.catalogService.getServices().subscribe({
       next: (data) => {
         this.services = data;
-        this.cdr.detectChanges(); // Refresca la tabla al instante
+        this.cdr.detectChanges();
       },
       error: (err) => console.error('Error al cargar servicios:', err)
     });
@@ -89,55 +101,136 @@ export class Catalog implements OnInit {
     this.catalogService.getSpareParts().subscribe({
       next: (data) => {
         this.spareParts = data;
-        this.cdr.detectChanges(); // Refresca la tabla al instante
+        this.cdr.detectChanges();
       },
       error: (err) => console.error('Error al cargar repuestos:', err)
     });
   }
 
-  // POST: Crear Servicio
+  // ==========================================
+  // SERVICIOS TÉCNICOS
+  // ==========================================
+
   guardarServicio(): void {
-    if (!this.newService.name || this.newService.fee <= 0) {
-      alert('Por favor ingresa un nombre y tarifa válida');
-      return;
-    }
+    if (!this.newService.name || this.newService.fee <= 0) return;
 
     this.catalogService.createService(this.newService).subscribe({
       next: (creado) => {
-        
-        // Actualizamos la lista de manera inmutable
         this.services = [...this.services, creado];
         this.newService = { name: '', fee: 0, description: '' };
-        // Forzamos el renderizado inmediato en pantalla sin recargar
-        this.cdr.detectChanges();
+        this.mostrarMensaje('✅ Servicio registrado con éxito');
       },
-      error: (err) => {
-        console.error('Error al crear servicio:', err);
-        alert(`Error al crear: ${err.status}`);
-      }
+      error: (err) => alert(`Error al crear: ${err.status}`)
     });
   }
 
-  // POST: Crear Repuesto
+  iniciarEdicionServicio(s: TechnicalService): void {
+    this.editingService = { ...s };
+    this.cdr.detectChanges();
+  }
+
+  guardarEdicionServicio(): void {
+    if (!this.editingService || !this.editingService.id) return;
+
+    this.catalogService.updateService(this.editingService.id, this.editingService).subscribe({
+      next: (actualizado) => {
+        this.services = this.services.map(s => s.id === actualizado.id ? actualizado : s);
+        this.editingService = null;
+        this.mostrarMensaje('✏️ Servicio actualizado con éxito');
+      },
+      error: (err) => alert(`Error al actualizar: ${err.status}`)
+    });
+  }
+
+  cancelarEdicionServicio(): void {
+    this.editingService = null;
+    this.cdr.detectChanges();
+  }
+
+  solicitarEliminarServicio(s: TechnicalService): void {
+    this.itemToDelete = { id: s.id!, name: s.name, type: 'service' };
+    this.cdr.detectChanges();
+  }
+
+  // ==========================================
+  // REPUESTOS
+  // ==========================================
+
   guardarRepuesto(): void {
-    if (!this.newPart.name || this.newPart.cost <= 0) {
-      alert('Por favor ingresa un nombre y costo válido');
-      return;
-    }
+    if (!this.newPart.name || this.newPart.cost <= 0) return;
 
     this.catalogService.createSparePart(this.newPart).subscribe({
       next: (creado) => {
-        
-        // Actualizamos la lista de manera inmutable
         this.spareParts = [...this.spareParts, creado];
         this.newPart = { name: '', cost: 0, stock: 0 };
-        // Forzamos el renderizado inmediato en pantalla sin recargar
-        this.cdr.detectChanges();
+        this.mostrarMensaje('✅ Repuesto registrado con éxito');
       },
-      error: (err) => {
-        console.error('Error al crear repuesto:', err);
-        alert(`Error al crear: ${err.status}`);
-      }
+      error: (err) => alert(`Error al crear: ${err.status}`)
     });
+  }
+
+  iniciarEdicionRepuesto(p: SparePart): void {
+    this.editingPart = { ...p };
+    this.cdr.detectChanges();
+  }
+
+  guardarEdicionRepuesto(): void {
+    if (!this.editingPart || !this.editingPart.id) return;
+
+    this.catalogService.updateSparePart(this.editingPart.id, this.editingPart).subscribe({
+      next: (actualizado) => {
+        this.spareParts = this.spareParts.map(p => p.id === actualizado.id ? actualizado : p);
+        this.editingPart = null;
+        this.mostrarMensaje('✏️ Repuesto actualizado con éxito');
+      },
+      error: (err) => alert(`Error al actualizar: ${err.status}`)
+    });
+  }
+
+  cancelarEdicionRepuesto(): void {
+    this.editingPart = null;
+    this.cdr.detectChanges();
+  }
+
+  solicitarEliminarRepuesto(p: SparePart): void {
+    this.itemToDelete = { id: p.id!, name: p.name, type: 'part' };
+    this.cdr.detectChanges();
+  }
+
+  // ==========================================
+  // MODAL DE CONFIRMACIÓN DE ELIMINACIÓN
+  // ==========================================
+
+  cancelarEliminacion(): void {
+    this.itemToDelete = null;
+    this.cdr.detectChanges();
+  }
+
+  confirmarEliminacion(): void {
+    if (!this.itemToDelete) return;
+
+    const { id, type } = this.itemToDelete;
+
+    if (type === 'service') {
+      this.catalogService.deleteService(id).subscribe({
+        next: () => {
+          this.services = this.services.filter(s => s.id !== id);
+          this.mostrarMensaje('🗑️ Servicio eliminado correctamente');
+          this.itemToDelete = null;
+          this.cdr.detectChanges();
+        },
+        error: (err) => alert(`Error al eliminar: ${err.status}`)
+      });
+    } else {
+      this.catalogService.deleteSparePart(id).subscribe({
+        next: () => {
+          this.spareParts = this.spareParts.filter(p => p.id !== id);
+          this.mostrarMensaje('🗑️ Repuesto eliminado correctamente');
+          this.itemToDelete = null;
+          this.cdr.detectChanges();
+        },
+        error: (err) => alert(`Error al eliminar: ${err.status}`)
+      });
+    }
   }
 }

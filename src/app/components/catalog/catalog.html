@@ -8,32 +8,39 @@
     </span>
   </header>
 
+  <!-- Mensaje de éxito que desaparece a los 3 segundos -->
+  <div *ngIf="mensajeExito" style="background: #d4edda; color: #155724; padding: 10px 15px; border-radius: 6px; margin: 15px 0; border: 1px solid #c3e6cb; font-weight: 500;">
+    {{ mensajeExito }}
+  </div>
+
   <!-- Pestañas de selección -->
   <div style="margin: 20px 0;">
     <button (click)="activeTab = 'services'" 
             [style.background]="activeTab === 'services' ? '#0078d4' : '#f3f2f1'"
             [style.color]="activeTab === 'services' ? 'white' : 'black'"
-            style="padding: 10px 20px; border: none; cursor: pointer; border-radius: 4px; margin-right: 10px;">
+            style="padding: 10px 20px; border: none; cursor: pointer; border-radius: 4px; margin-right: 10px; font-weight: bold;">
       🛠️ Servicios Técnicos ({{ services.length }})
     </button>
     <button (click)="activeTab = 'parts'" 
             [style.background]="activeTab === 'parts' ? '#0078d4' : '#f3f2f1'"
             [style.color]="activeTab === 'parts' ? 'white' : 'black'"
-            style="padding: 10px 20px; border: none; cursor: pointer; border-radius: 4px;">
+            style="padding: 10px 20px; border: none; cursor: pointer; border-radius: 4px; font-weight: bold;">
       ⚙️ Repuestos ({{ spareParts.length }})
     </button>
   </div>
 
+  <!-- ========================================== -->
   <!-- SECCIÓN 1: SERVICIOS TÉCNICOS -->
+  <!-- ========================================== -->
   <section *ngIf="activeTab === 'services'">
-    <!-- Formulario para crear servicio: SOLO VISIBLE SI ES ADMIN -->
+    <!-- Formulario para crear servicio (SOLO ADMIN) -->
     <div *ngIf="esAdmin" style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #cce5ff;">
-      <h4>➕ Registrar Nuevo Servicio Técnico (Acción ADMIN)</h4>
+      <h4 style="margin-top: 0;">➕ Registrar Nuevo Servicio Técnico</h4>
       <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-        <input [(ngModel)]="newService.name" placeholder="Nombre del servicio (Ej: Cambio de pantalla)" style="padding: 8px; flex: 2;" />
-        <input [(ngModel)]="newService.fee" type="number" placeholder="Tarifa ($)" style="padding: 8px; flex: 1;" />
-        <input [(ngModel)]="newService.description" placeholder="Descripción (opcional)" style="padding: 8px; flex: 2;" />
-        <button (click)="guardarServicio()" style="background: #28a745; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+        <input [(ngModel)]="newService.name" placeholder="Nombre (Ej: Cambio de pantalla)" style="padding: 8px; flex: 2; border-radius: 4px; border: 1px solid #ccc;" />
+        <input [(ngModel)]="newService.fee" type="number" placeholder="Tarifa ($)" style="padding: 8px; flex: 1; border-radius: 4px; border: 1px solid #ccc;" />
+        <input [(ngModel)]="newService.description" placeholder="Descripción" style="padding: 8px; flex: 2; border-radius: 4px; border: 1px solid #ccc;" />
+        <button (click)="guardarServicio()" style="background: #28a745; color: white; border: none; padding: 8px 18px; border-radius: 4px; cursor: pointer; font-weight: bold;">
           Guardar Servicio
         </button>
       </div>
@@ -43,36 +50,59 @@
     <table border="1" cellpadding="8" style="width: 100%; border-collapse: collapse; border-color: #eee;">
       <thead style="background: #f4f4f4;">
         <tr>
-          <th>ID</th>
+          <th style="width: 60px;">ID</th>
           <th>Nombre</th>
-          <th>Tarifa</th>
+          <th style="width: 120px;">Tarifa</th>
           <th>Descripción</th>
+          <th *ngIf="esAdmin" style="text-align: center; width: 170px;">Acciones</th>
         </tr>
       </thead>
       <tbody>
         <tr *ngFor="let s of services">
-          <td>{{ s.id }}</td>
-          <td><strong>{{ s.name }}</strong></td>
-          <td>${{ s.fee }}</td>
-          <td>{{ s.description || 'Sin descripción' }}</td>
+          <!-- Modo edición en fila -->
+          <ng-container *ngIf="editingService && editingService.id === s.id; else modoLecturaServicio">
+            <td>{{ s.id }}</td>
+            <td><input [(ngModel)]="editingService.name" style="width: 95%; padding: 5px; border-radius: 4px; border: 1px solid #0078d4;" /></td>
+            <td><input [(ngModel)]="editingService.fee" type="number" style="width: 95px; padding: 5px; border-radius: 4px; border: 1px solid #0078d4;" /></td>
+            <td><input [(ngModel)]="editingService.description" style="width: 95%; padding: 5px; border-radius: 4px; border: 1px solid #0078d4;" /></td>
+            <td style="text-align: center;">
+              <button (click)="guardarEdicionServicio()" style="background: #0078d4; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-right: 5px; font-weight: bold;">💾 Guardar</button>
+              <button (click)="cancelarEdicionServicio()" style="background: #6c757d; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">✖</button>
+            </td>
+          </ng-container>
+
+          <!-- Modo normal / lectura -->
+          <ng-template #modoLecturaServicio>
+            <td>{{ s.id }}</td>
+            <td><strong>{{ s.name }}</strong></td>
+            <td>${{ s.fee }}</td>
+            <td>{{ s.description || 'Sin descripción' }}</td>
+            <td *ngIf="esAdmin" style="text-align: center;">
+              <button (click)="iniciarEdicionServicio(s)" style="background: #ffc107; color: black; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-right: 6px; font-weight: 500;">✏️ Editar</button>
+              <button (click)="solicitarEliminarServicio(s)" style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-weight: 500;">🗑️ Borrar</button>
+            </td>
+          </ng-template>
         </tr>
+
         <tr *ngIf="services.length === 0">
-          <td colspan="4" style="text-align: center; color: #888;">No hay servicios registrados aún en la base de datos.</td>
+          <td [attr.colspan]="esAdmin ? 5 : 4" style="text-align: center; color: #888; padding: 20px;">No hay servicios registrados aún en la base de datos.</td>
         </tr>
       </tbody>
     </table>
   </section>
 
+  <!-- ========================================== -->
   <!-- SECCIÓN 2: REPUESTOS -->
+  <!-- ========================================== -->
   <section *ngIf="activeTab === 'parts'">
-    <!-- Formulario para crear repuesto: SOLO VISIBLE SI ES ADMIN -->
+    <!-- Formulario para crear repuesto (SOLO ADMIN) -->
     <div *ngIf="esAdmin" style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #cce5ff;">
-      <h4>➕ Registrar Nuevo Repuesto (Acción ADMIN)</h4>
+      <h4 style="margin-top: 0;">➕ Registrar Nuevo Repuesto</h4>
       <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-        <input [(ngModel)]="newPart.name" placeholder="Nombre del repuesto (Ej: Batería iPhone 12)" style="padding: 8px; flex: 2;" />
-        <input [(ngModel)]="newPart.cost" type="number" placeholder="Costo ($)" style="padding: 8px; flex: 1;" />
-        <input [(ngModel)]="newPart.stock" type="number" placeholder="Stock inicial" style="padding: 8px; flex: 1;" />
-        <button (click)="guardarRepuesto()" style="background: #28a745; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+        <input [(ngModel)]="newPart.name" placeholder="Nombre (Ej: Batería iPhone 12)" style="padding: 8px; flex: 2; border-radius: 4px; border: 1px solid #ccc;" />
+        <input [(ngModel)]="newPart.cost" type="number" placeholder="Costo ($)" style="padding: 8px; flex: 1; border-radius: 4px; border: 1px solid #ccc;" />
+        <input [(ngModel)]="newPart.stock" type="number" placeholder="Stock inicial" style="padding: 8px; flex: 1; border-radius: 4px; border: 1px solid #ccc;" />
+        <button (click)="guardarRepuesto()" style="background: #28a745; color: white; border: none; padding: 8px 18px; border-radius: 4px; cursor: pointer; font-weight: bold;">
           Guardar Repuesto
         </button>
       </div>
@@ -82,28 +112,80 @@
     <table border="1" cellpadding="8" style="width: 100%; border-collapse: collapse; border-color: #eee;">
       <thead style="background: #f4f4f4;">
         <tr>
-          <th>ID</th>
+          <th style="width: 60px;">ID</th>
           <th>Nombre Repuesto</th>
-          <th>Costo</th>
-          <th>Stock Disponible</th>
+          <th style="width: 120px;">Costo</th>
+          <th style="width: 140px;">Stock Disponible</th>
+          <th *ngIf="esAdmin" style="text-align: center; width: 170px;">Acciones</th>
         </tr>
       </thead>
       <tbody>
         <tr *ngFor="let p of spareParts">
-          <td>{{ p.id }}</td>
-          <td><strong>{{ p.name }}</strong></td>
-          <td>${{ p.cost }}</td>
-          <td>
-            <span [style.color]="p.stock > 0 ? '#28a745' : '#dc3545'" style="font-weight: bold;">
-              {{ p.stock }} unidades
-            </span>
-          </td>
+          <!-- Modo edición en fila -->
+          <ng-container *ngIf="editingPart && editingPart.id === p.id; else modoLecturaRepuesto">
+            <td>{{ p.id }}</td>
+            <td><input [(ngModel)]="editingPart.name" style="width: 95%; padding: 5px; border-radius: 4px; border: 1px solid #0078d4;" /></td>
+            <td><input [(ngModel)]="editingPart.cost" type="number" style="width: 95px; padding: 5px; border-radius: 4px; border: 1px solid #0078d4;" /></td>
+            <td><input [(ngModel)]="editingPart.stock" type="number" style="width: 80px; padding: 5px; border-radius: 4px; border: 1px solid #0078d4;" /></td>
+            <td style="text-align: center;">
+              <button (click)="guardarEdicionRepuesto()" style="background: #0078d4; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-right: 5px; font-weight: bold;">💾 Guardar</button>
+              <button (click)="cancelarEdicionRepuesto()" style="background: #6c757d; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">✖</button>
+            </td>
+          </ng-container>
+
+          <!-- Modo normal / lectura -->
+          <ng-template #modoLecturaRepuesto>
+            <td>{{ p.id }}</td>
+            <td><strong>{{ p.name }}</strong></td>
+            <td>${{ p.cost }}</td>
+            <td>
+              <span [style.color]="p.stock > 0 ? '#28a745' : '#dc3545'" style="font-weight: bold;">
+                {{ p.stock }} unidades
+              </span>
+            </td>
+            <td *ngIf="esAdmin" style="text-align: center;">
+              <button (click)="iniciarEdicionRepuesto(p)" style="background: #ffc107; color: black; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-right: 6px; font-weight: 500;">✏️ Editar</button>
+              <button (click)="solicitarEliminarRepuesto(p)" style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-weight: 500;">🗑️ Borrar</button>
+            </td>
+          </ng-template>
         </tr>
+
         <tr *ngIf="spareParts.length === 0">
-          <td colspan="4" style="text-align: center; color: #888;">No hay repuestos registrados aún en la base de datos.</td>
+          <td [attr.colspan]="esAdmin ? 5 : 4" style="text-align: center; color: #888; padding: 20px;">No hay repuestos registrados aún en la base de datos.</td>
         </tr>
       </tbody>
     </table>
   </section>
+
+  <!-- ========================================== -->
+  <!-- MODAL DE CONFIRMACIÓN CENTRADO EN PANTALLA -->
+  <!-- ========================================== -->
+  <div *ngIf="itemToDelete" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.45); display: flex; justify-content: center; align-items: center; z-index: 9999;">
+    
+    <div style="background: white; padding: 25px 30px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25); max-width: 440px; width: 90%; text-align: center;">
+      
+      <div style="font-size: 45px; margin-bottom: 12px;">⚠️</div>
+      
+      <h3 style="margin: 0 0 10px 0; color: #212529; font-size: 20px;">¿Confirmar eliminación?</h3>
+      
+      <p style="color: #6c757d; font-size: 15px; margin: 0 0 25px 0; line-height: 1.4;">
+        ¿Estás seguro de que deseas eliminar {{ itemToDelete.type === 'service' ? 'el servicio' : 'el repuesto' }}
+        <strong style="color: #000;">"{{ itemToDelete.name }}"</strong>? Esta acción no se puede deshacer.
+      </p>
+
+      <div style="display: flex; justify-content: center; gap: 12px;">
+        <button (click)="cancelarEliminacion()" 
+                style="padding: 9px 20px; border-radius: 6px; border: 1px solid #ced4da; background: #f8f9fa; cursor: pointer; font-weight: 600; color: #495057;">
+          Cancelar
+        </button>
+        <button (click)="confirmarEliminacion()" 
+                style="padding: 9px 20px; border-radius: 6px; border: none; background: #dc3545; color: white; cursor: pointer; font-weight: 600; box-shadow: 0 2px 4px rgba(220,53,69,0.3);">
+          Sí, eliminar
+        </button>
+      </div>
+
+    </div>
+
+  </div>
 
 </div>
