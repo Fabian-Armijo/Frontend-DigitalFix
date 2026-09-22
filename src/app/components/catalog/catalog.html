@@ -1,1 +1,109 @@
-<p>catalog works!</p>
+<div class="container" style="padding: 20px; font-family: sans-serif;">
+  
+  <!-- Encabezado con el rol del usuario -->
+  <header style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ddd; padding-bottom: 10px;">
+    <h2>📦 Gestión de Catálogo y Repuestos</h2>
+    <span style="background: #e1dfdd; padding: 6px 12px; border-radius: 12px; font-weight: bold;">
+      Rol actual: {{ userRole || 'Sin rol' }}
+    </span>
+  </header>
+
+  <!-- Pestañas de selección -->
+  <div style="margin: 20px 0;">
+    <button (click)="activeTab = 'services'" 
+            [style.background]="activeTab === 'services' ? '#0078d4' : '#f3f2f1'"
+            [style.color]="activeTab === 'services' ? 'white' : 'black'"
+            style="padding: 10px 20px; border: none; cursor: pointer; border-radius: 4px; margin-right: 10px;">
+      🛠️ Servicios Técnicos ({{ services.length }})
+    </button>
+    <button (click)="activeTab = 'parts'" 
+            [style.background]="activeTab === 'parts' ? '#0078d4' : '#f3f2f1'"
+            [style.color]="activeTab === 'parts' ? 'white' : 'black'"
+            style="padding: 10px 20px; border: none; cursor: pointer; border-radius: 4px;">
+      ⚙️ Repuestos ({{ spareParts.length }})
+    </button>
+  </div>
+
+  <!-- SECCIÓN 1: SERVICIOS TÉCNICOS -->
+  <section *ngIf="activeTab === 'services'">
+    <!-- Formulario para crear servicio: SOLO VISIBLE SI ES ADMIN -->
+    <div *ngIf="esAdmin" style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #cce5ff;">
+      <h4>➕ Registrar Nuevo Servicio Técnico (Acción ADMIN)</h4>
+      <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <input [(ngModel)]="newService.name" placeholder="Nombre del servicio (Ej: Cambio de pantalla)" style="padding: 8px; flex: 2;" />
+        <input [(ngModel)]="newService.fee" type="number" placeholder="Tarifa ($)" style="padding: 8px; flex: 1;" />
+        <input [(ngModel)]="newService.description" placeholder="Descripción (opcional)" style="padding: 8px; flex: 2;" />
+        <button (click)="guardarServicio()" style="background: #28a745; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+          Guardar Servicio
+        </button>
+      </div>
+    </div>
+
+    <!-- Tabla de servicios -->
+    <table border="1" cellpadding="8" style="width: 100%; border-collapse: collapse; border-color: #eee;">
+      <thead style="background: #f4f4f4;">
+        <tr>
+          <th>ID</th>
+          <th>Nombre</th>
+          <th>Tarifa</th>
+          <th>Descripción</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let s of services">
+          <td>{{ s.id }}</td>
+          <td><strong>{{ s.name }}</strong></td>
+          <td>${{ s.fee }}</td>
+          <td>{{ s.description || 'Sin descripción' }}</td>
+        </tr>
+        <tr *ngIf="services.length === 0">
+          <td colspan="4" style="text-align: center; color: #888;">No hay servicios registrados aún en la base de datos.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- SECCIÓN 2: REPUESTOS -->
+  <section *ngIf="activeTab === 'parts'">
+    <!-- Formulario para crear repuesto: SOLO VISIBLE SI ES ADMIN -->
+    <div *ngIf="esAdmin" style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #cce5ff;">
+      <h4>➕ Registrar Nuevo Repuesto (Acción ADMIN)</h4>
+      <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <input [(ngModel)]="newPart.name" placeholder="Nombre del repuesto (Ej: Batería iPhone 12)" style="padding: 8px; flex: 2;" />
+        <input [(ngModel)]="newPart.cost" type="number" placeholder="Costo ($)" style="padding: 8px; flex: 1;" />
+        <input [(ngModel)]="newPart.stock" type="number" placeholder="Stock inicial" style="padding: 8px; flex: 1;" />
+        <button (click)="guardarRepuesto()" style="background: #28a745; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+          Guardar Repuesto
+        </button>
+      </div>
+    </div>
+
+    <!-- Tabla de repuestos -->
+    <table border="1" cellpadding="8" style="width: 100%; border-collapse: collapse; border-color: #eee;">
+      <thead style="background: #f4f4f4;">
+        <tr>
+          <th>ID</th>
+          <th>Nombre Repuesto</th>
+          <th>Costo</th>
+          <th>Stock Disponible</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let p of spareParts">
+          <td>{{ p.id }}</td>
+          <td><strong>{{ p.name }}</strong></td>
+          <td>${{ p.cost }}</td>
+          <td>
+            <span [style.color]="p.stock > 0 ? '#28a745' : '#dc3545'" style="font-weight: bold;">
+              {{ p.stock }} unidades
+            </span>
+          </td>
+        </tr>
+        <tr *ngIf="spareParts.length === 0">
+          <td colspan="4" style="text-align: center; color: #888;">No hay repuestos registrados aún en la base de datos.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+</div>

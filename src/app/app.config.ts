@@ -2,10 +2,20 @@ import { ApplicationConfig } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { routes } from './app.routes';
 import { provideHttpClient, withInterceptorsFromDi, HTTP_INTERCEPTORS } from '@angular/common/http';
-import { environment } from '../environments/environment.development';
+import { environment } from '../environments/environment';
 
 // Importaciones de Microsoft MSAL
-import { MSAL_INSTANCE, MSAL_GUARD_CONFIG, MSAL_INTERCEPTOR_CONFIG, MsalService, MsalGuard, MsalBroadcastService, MsalInterceptor, MsalGuardConfiguration, MsalInterceptorConfiguration } from '@azure/msal-angular';
+import { 
+  MSAL_INSTANCE, 
+  MSAL_GUARD_CONFIG, 
+  MSAL_INTERCEPTOR_CONFIG, 
+  MsalService, 
+  MsalGuard, 
+  MsalBroadcastService, 
+  MsalInterceptor, 
+  MsalGuardConfiguration, 
+  MsalInterceptorConfiguration 
+} from '@azure/msal-angular';
 import { PublicClientApplication, InteractionType, BrowserCacheLocation } from '@azure/msal-browser';
 
 // 1. Configuración principal de la instancia MSAL
@@ -23,12 +33,12 @@ export function MSALInstanceFactory() {
   });
 }
 
-// 2. Configuración del Interceptor (Adjuntará el Access Token a las peticiones hacia el BFF)
+// 2. Configuración del Interceptor (AQUÍ ESTÁ EL CAMBIO CLAVE)
 export function MSALInterceptorConfigFactory(): MsalInterceptorConfiguration {
   const protectedResourceMap = new Map<string, Array<string>>();
-  // Protegemos la ruta del BFF para que MSAL adjunte el token automáticamente[cite: 1]
-  // El scope "user.read" es por defecto para pruebas, luego lo ajustaremos al scope de tu BFF si es necesario.
-  protectedResourceMap.set(environment.api.bffUrl, ['user.read']);
+  
+  // Asociamos cualquier llamada a http://localhost:8083/api/* con el Scope de tu Backend
+  protectedResourceMap.set(`${environment.api.bffUrl}/*`, [environment.api.scope]);
 
   return {
     interactionType: InteractionType.Redirect,
@@ -36,19 +46,21 @@ export function MSALInterceptorConfigFactory(): MsalInterceptorConfiguration {
   };
 }
 
-// 3. Configuración del Guard (Protegerá las rutas del frontend)[cite: 1]
+// 3. Configuración del Guard
 export function MSALGuardConfigFactory(): MsalGuardConfiguration {
   return { 
     interactionType: InteractionType.Redirect,
-    authRequest: { scopes: ['user.read'] }
+    authRequest: { 
+      // Pedimos tanto user.read como el scope de tu API desde el inicio de sesión
+      scopes: ['user.read', environment.api.scope] 
+    }
   };
 }
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideRouter(routes),
-    provideHttpClient(withInterceptorsFromDi()), // Necesario para hacer peticiones HTTP
-    // Proveedores de MSAL exigidos por la arquitectura[cite: 1]
+    provideHttpClient(withInterceptorsFromDi()),
     { provide: HTTP_INTERCEPTORS, useClass: MsalInterceptor, multi: true },
     { provide: MSAL_INSTANCE, useFactory: MSALInstanceFactory },
     { provide: MSAL_GUARD_CONFIG, useFactory: MSALGuardConfigFactory },

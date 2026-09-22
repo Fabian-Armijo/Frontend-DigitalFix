@@ -26,9 +26,13 @@
         <option value="SUPERVISOR" selected>Probar como Supervisor</option>
         <option value="ADMIN">Probar como Admin</option>
         <option value="CLIENTE">Probar como Cliente</option>
+        
       </select>
 
       <button class="btn-logout" (click)="logout()">Cerrar Sesión</button>
+      <button (click)="probarBff()" style="padding: 10px 18px; margin: 15px; font-weight: bold; cursor: pointer;">
+  🚀 Probar Conexión con BFF (Catálogo)
+</button>
     </div>
   </aside>
 
