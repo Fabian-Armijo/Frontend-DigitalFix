@@ -9,7 +9,7 @@ export const environment = {
     }
   },
   api: {
-    bffUrl: 'http://localhost:8083/api',
+    bffUrl: 'https://y9alroweth.execute-api.us-east-1.amazonaws.com/api',
     scope: 'api://e0877608-03e1-4d4b-a0c9-d50d0ddbdb7c/access_as_user'
   }
 };

@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { MsalService } from '@azure/msal-angular';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-layout',
@@ -69,8 +70,8 @@ export class LayoutComponent implements OnInit {
   }
 
   probarBff(): void {
-    this.http.get('http://localhost:8083/api/catalog/services').subscribe({
-      next: (data) => console.log('BFF Conectado exitosamente:', data),
+    this.http.get(`${environment.api.bffUrl}/catalog/services`).subscribe({
+      next: (data) => console.log('BFF Conectado exitosamente vía AWS API Gateway:', data),
       error: (err) => console.error('Error al conectar con BFF:', err)
     });
   }

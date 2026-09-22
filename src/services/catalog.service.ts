@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { environment } from '../environments/environment';
 
 export interface TechnicalService {
   id?: number;
@@ -21,7 +22,8 @@ export interface SparePart {
 })
 export class CatalogService {
   private http = inject(HttpClient);
-  private baseUrl = 'http://localhost:8083/api/catalog';
+  // Usa la URL del API Gateway de AWS definida en environment
+  private baseUrl = `${environment.api.bffUrl}/catalog`;
 
   // --- SERVICIOS TÉCNICOS ---
   getServices(): Observable<TechnicalService[]> {
