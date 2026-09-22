@@ -1,19 +1,30 @@
 import { Routes } from '@angular/router';
 import { MsalGuard } from '@azure/msal-angular';
 
-// Importa usando el nombre exacto de la clase que está dentro de los archivos
+// Importaciones de vistas
 import { LoginComponent } from './components/login/login';
+import { LayoutComponent } from './components/layout/layout';
 import { DashboardComponent } from './components/dashboard/dashboard';
 import { Workorders } from './components/workorders/workorders';
 import { Catalog } from './components/catalog/catalog';
 
-
 export const routes: Routes = [
+  // Ruta pública sin menú lateral
   { path: 'login', component: LoginComponent },
-  { path: 'dashboard', component: DashboardComponent, canActivate: [MsalGuard] },
-  { path: 'workorders', component: Workorders, canActivate: [MsalGuard] },
-  { path: 'catalog', component: Catalog, canActivate: [MsalGuard] },
-  
-  { path: '', redirectTo: '/login', pathMatch: 'full' },
+
+  // Rutas protegidas que comparten el menú lateral y barra superior (Layout)
+  {
+    path: '',
+    component: LayoutComponent,
+    canActivate: [MsalGuard],
+    children: [
+      { path: 'dashboard', component: DashboardComponent },
+      { path: 'workorders', component: Workorders },
+      { path: 'catalog', component: Catalog },
+      { path: '', redirectTo: 'dashboard', pathMatch: 'full' }
+    ]
+  },
+
+  // Redirección por defecto
   { path: '**', redirectTo: '/login' }
 ];

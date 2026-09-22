@@ -1,79 +1,37 @@
-<div class="dashboard-layout">
-  <!-- MENÚ LATERAL -->
-  <aside class="sidebar">
-    <div class="brand">
-      <span class="icon">🔧</span>
-      <h2>DigitalFix</h2>
+<div class="kpis-wrapper">
+  <div class="dashboard-header">
+    <h2>Panel de Métricas (KPIs)</h2>
+    <p>Resumen de indicadores clave de la operación.</p>
+  </div>
+
+  <!-- KPIs según el rol -->
+  <section class="kpi-grid">
+    <!-- KPI para todos -->
+    <div class="kpi-card">
+      <h3>Órdenes Pendientes</h3>
+      <p class="number">12</p>
+      <span class="status warning">Requieren atención</span>
     </div>
 
-    <nav class="menu">
-      <a routerLink="/dashboard" class="menu-item active">📊 Dashboard (KPIs)</a>
-      <a routerLink="/workorders" class="menu-item">📋 Órdenes de Trabajo</a>
-      
-      <!-- El Cliente no gestiona el catálogo[cite: 1], por lo que se lo ocultamos visualmente -->
-      <a routerLink="/catalog" class="menu-item" *ngIf="userRole !== 'CLIENTE'">📦 Catálogo y Repuestos</a>
-    </nav>
-
-    <div class="user-profile">
-      <div class="avatar">👤</div>
-      <div class="info">
-        <p class="email">{{ userName || 'Usuario' }}</p>
-        <span class="badge" [ngClass]="userRole.toLowerCase()">Rol: {{ userRole }}</span>
-      </div>
-      
-      <!-- Selector temporal para que pruebes las vistas -->
-      <select class="role-selector" (change)="cambiarRolSimulado($event)">
-        <option value="SUPERVISOR" selected>Probar como Supervisor</option>
-        <option value="ADMIN">Probar como Admin</option>
-        <option value="CLIENTE">Probar como Cliente</option>
-        
-      </select>
-
-      <button class="btn-logout" (click)="logout()">Cerrar Sesión</button>
-      <button (click)="probarBff()" style="padding: 10px 18px; margin: 15px; font-weight: bold; cursor: pointer;">
-  🚀 Probar Conexión con BFF (Catálogo)
-</button>
+    <!-- KPI solo para Supervisor y Admin -->
+    <div class="kpi-card" *ngIf="userRole === 'ADMIN' || userRole === 'SUPERVISOR'">
+      <h3>Técnicos Asignados</h3>
+      <p class="number">5</p>
+      <span class="status info">En ejecución</span>
     </div>
-  </aside>
 
-  <!-- CONTENIDO PRINCIPAL -->
-  <main class="content">
-    <header class="topbar">
-      <h1>Panel de Control</h1>
-      <p>Bienvenido. Aquí tienes el seguimiento de operaciones según tu rol.</p>
-    </header>
+    <!-- KPI crítico solo para Admin -->
+    <div class="kpi-card" *ngIf="userRole === 'ADMIN'">
+      <h3>Stock Crítico</h3>
+      <p class="number text-danger">3</p>
+      <span class="status danger">Repuestos por agotarse</span>
+    </div>
 
-    <!-- KPIs según el rol[cite: 1] -->
-    <section class="kpi-grid">
-      
-      <!-- KPI para todos -->
-      <div class="kpi-card">
-        <h3>Órdenes Pendientes</h3>
-        <p class="number">12</p>
-        <span class="status warning">Requieren atención</span>
-      </div>
-
-      <!-- KPI solo para Supervisor y Admin -->
-      <div class="kpi-card" *ngIf="userRole === 'ADMIN' || userRole === 'SUPERVISOR'">
-        <h3>Técnicos Asignados</h3>
-        <p class="number">5</p>
-        <span class="status info">En ejecución</span>
-      </div>
-
-      <!-- KPI crítico solo para Admin (Gestión global de repuestos) -->
-      <div class="kpi-card" *ngIf="userRole === 'ADMIN'">
-        <h3>Stock Crítico</h3>
-        <p class="number text-danger">3</p>
-        <span class="status danger">Repuestos por agotarse</span>
-      </div>
-
-      <!-- KPI para Cliente -->
-      <div class="kpi-card" *ngIf="userRole === 'CLIENTE'">
-        <h3>Mis Equipos en Reparación</h3>
-        <p class="number text-success">2</p>
-        <span class="status success">Revisa el estado en Órdenes</span>
-      </div>
-
-    </section>
-  </main>
+    <!-- KPI para Cliente -->
+    <div class="kpi-card" *ngIf="userRole === 'CLIENTE'">
+      <h3>Mis Equipos en Reparación</h3>
+      <p class="number text-success">2</p>
+      <span class="status success">Revisa el estado en Órdenes</span>
+    </div>
+  </section>
 </div>
