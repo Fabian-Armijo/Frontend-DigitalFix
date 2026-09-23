@@ -55,10 +55,37 @@ export class Workorders implements OnInit {
     this.cargarServiciosCatalogo();
   }
 
+  generarCustomerId(username: string): number {
+    if (!username) return 1;
+    const lower = username.toLowerCase();
+    
+    // Si el correo es "cliente@" (el primer cliente sin número)
+    if (lower.startsWith('cliente@')) {
+      return 1;
+    }
+    
+    // Si tiene número explícito en el nombre de usuario (ej: cliente1, cliente2, cliente10)
+    const match = lower.split('@')[0].match(/\d+/);
+    if (match) {
+      const num = parseInt(match[0], 10);
+      if (num > 0) return num;
+    }
+
+    // Para cualquier otro correo (ej: pedro@..., juan@...), hash determinista
+    let hash = 0;
+    for (let i = 0; i < lower.length; i++) {
+      hash = ((hash << 5) - hash) + lower.charCodeAt(i);
+      hash |= 0;
+    }
+    return (Math.abs(hash) % 900) + 10;
+  }
+
   obtenerRolUsuario(): void {
     const account = this.msalService.instance.getActiveAccount() || this.msalService.instance.getAllAccounts()[0];
     if (account) {
       this.userEmail = account.username;
+      this.customerId = this.generarCustomerId(account.username);
+
       this.msalService.acquireTokenSilent({
         scopes: ['api://e0877608-03e1-4d4b-a0c9-d50d0ddbdb7c/access_as_user'],
         account: account
@@ -74,10 +101,13 @@ export class Workorders implements OnInit {
           } catch {
             this.userRole = 'CLIENTE';
           }
+          this.revisarSeleccionOrden();
           this.cdr.detectChanges();
         },
         error: () => {
-          this.userRole = 'CLIENTE';
+          const roles = (account.idTokenClaims as any)?.roles;
+          this.userRole = (roles && roles.length > 0) ? roles[0].toUpperCase() : 'CLIENTE';
+          this.revisarSeleccionOrden();
           this.cdr.detectChanges();
         }
       });
@@ -90,10 +120,7 @@ export class Workorders implements OnInit {
       next: (data) => {
         // Ordenar de más reciente a más antigua
         this.workOrders = data.sort((a, b) => (b.id || 0) - (a.id || 0));
-        // Si no hay orden seleccionada o la seleccionada ya no existe, seleccionar la primera
-        if (this.workOrders.length > 0 && !this.selectedOrder) {
-          this.selectedOrder = this.workOrders[0];
-        }
+        this.revisarSeleccionOrden();
         this.cargando = false;
         this.cdr.detectChanges();
       },
@@ -103,6 +130,15 @@ export class Workorders implements OnInit {
         this.cdr.detectChanges();
       }
     });
+  }
+
+  revisarSeleccionOrden(): void {
+    const filtradas = this.ordenesFiltradas;
+    if (filtradas.length > 0 && (!this.selectedOrder || !filtradas.some(o => o.id === this.selectedOrder?.id))) {
+      this.selectedOrder = filtradas[0];
+    } else if (filtradas.length === 0) {
+      this.selectedOrder = null;
+    }
   }
 
   cargarServiciosCatalogo(): void {
@@ -147,7 +183,8 @@ export class Workorders implements OnInit {
         this.orderNotes = '';
         this.selectedServiceId = null;
         this.guardando = false;
-        this.mostrarExito(`🎉 ¡Orden #${nuevaOrden.id} creada con éxito! Puedes seguir su avance aquí.`);
+        const numMostrar = this.getNumeroOrden(nuevaOrden);
+        this.mostrarExito(`🎉 ¡Orden #${numMostrar} creada con éxito! Puedes seguir su avance aquí.`);
         this.cdr.detectChanges();
       },
       error: (err) => {
@@ -164,15 +201,37 @@ export class Workorders implements OnInit {
     this.cdr.detectChanges();
   }
 
+  // Obtiene el número correlativo para el cliente (#1, #2...) o el ID global para Supervisor/Admin
+  getNumeroOrden(ord: WorkOrder | null): number {
+    if (!ord) return 0;
+    if (this.userRole !== 'CLIENTE') {
+      return ord.id || 0;
+    }
+    // Para el cliente: lista de sus órdenes ordenadas cronológicamente (ID ascendente)
+    const misOrdenes = this.workOrders
+      .filter(o => o.customerId === this.customerId)
+      .sort((a, b) => (a.id || 0) - (b.id || 0));
+
+    const index = misOrdenes.findIndex(o => o.id === ord.id);
+    return index !== -1 ? index + 1 : (ord.id || 0);
+  }
+
   // --- HELPERS PARA UI Y STEPPER ---
   get ordenesFiltradas(): WorkOrder[] {
+    let lista = this.workOrders;
+
+    // Si el usuario es CLIENTE, solo ve sus propias órdenes de mantención
+    if (this.userRole === 'CLIENTE') {
+      lista = lista.filter(o => o.customerId === this.customerId);
+    }
+
     if (this.filtroEstado === 'ACTIVAS') {
-      return this.workOrders.filter(o => o.status !== 'CERRADA' && o.status !== 'CANCELADA');
+      return lista.filter(o => o.status !== 'CERRADA' && o.status !== 'CANCELADA');
     }
     if (this.filtroEstado === 'FINALIZADAS') {
-      return this.workOrders.filter(o => o.status === 'CERRADA' || o.status === 'CANCELADA');
+      return lista.filter(o => o.status === 'CERRADA' || o.status === 'CANCELADA');
     }
-    return this.workOrders;
+    return lista;
   }
 
   getPasoActual(status: WorkOrderStatus): number {

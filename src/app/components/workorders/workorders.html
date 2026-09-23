@@ -4,11 +4,19 @@
   <header class="page-header">
     <div>
       <h2>📋 Órdenes de Mantención</h2>
-      <p class="subtitle">Crea tus solicitudes de servicio técnico y realiza seguimiento de su avance en terreno.</p>
+      <p class="subtitle" *ngIf="userRole === 'CLIENTE'">
+        Crea tus solicitudes de servicio técnico y realiza seguimiento de su avance en terreno.
+      </p>
+      <p class="subtitle" *ngIf="userRole !== 'CLIENTE'">
+        Supervisión y gestión general de órdenes de mantención de todos los clientes.
+      </p>
     </div>
     <div class="header-badges">
       <span class="role-pill" [ngClass]="userRole.toLowerCase()">
         Rol actual: {{ userRole }}
+      </span>
+      <span class="client-id-pill" *ngIf="userRole === 'CLIENTE'">
+        👤 Cliente #{{ customerId }}
       </span>
     </div>
   </header>
@@ -81,7 +89,8 @@
     <!-- COLUMNA 1: LISTADO DE ÓRDENES -->
     <section class="orders-column">
       <div class="column-header">
-        <h3>Historial de Órdenes ({{ ordenesFiltradas.length }})</h3>
+        <h3 *ngIf="userRole === 'CLIENTE'">Mis Órdenes de Mantención ({{ ordenesFiltradas.length }})</h3>
+        <h3 *ngIf="userRole !== 'CLIENTE'">Todas las Órdenes ({{ ordenesFiltradas.length }})</h3>
         
         <!-- Filtros rápidos -->
         <div class="filter-tabs">
@@ -96,7 +105,8 @@
       </div>
 
       <div *ngIf="!cargando && ordenesFiltradas.length === 0" class="empty-state">
-        <p>📭 No hay órdenes registradas con este filtro.</p>
+        <p *ngIf="userRole === 'CLIENTE'">📭 Aún no tienes órdenes registradas. ¡Crea una arriba para comenzar!</p>
+        <p *ngIf="userRole !== 'CLIENTE'">📭 No hay órdenes registradas con este filtro.</p>
       </div>
 
       <!-- Tarjetas de órdenes -->
@@ -108,9 +118,15 @@
           [class.selected]="selectedOrder?.id === ord.id">
           
           <div class="order-card-top">
-            <span class="order-id">Orden #{{ ord.id }}</span>
+            <span class="order-id">Orden #{{ getNumeroOrden(ord) }}</span>
             <span class="status-badge" [ngClass]="getStatusBadgeClass(ord.status)">
               {{ getStatusLabel(ord.status) }}
+            </span>
+          </div>
+
+          <div *ngIf="userRole !== 'CLIENTE'" style="margin-bottom: 6px;">
+            <span style="font-size: 0.78rem; background: #e0e7ff; color: #3730a3; padding: 2px 6px; border-radius: 4px; font-weight: 600;">
+              👤 Cliente #{{ ord.customerId }}
             </span>
           </div>
 
@@ -136,7 +152,7 @@
       <div class="tracking-header">
         <div class="tracking-title-box">
           <span class="tracking-label">Seguimiento en Vivo</span>
-          <h3>Orden de Mantención #{{ selectedOrder.id }}</h3>
+          <h3>Orden de Mantención #{{ getNumeroOrden(selectedOrder) }}</h3>
         </div>
         <span class="status-badge large" [ngClass]="getStatusBadgeClass(selectedOrder.status)">
           {{ getStatusLabel(selectedOrder.status) }}
@@ -177,8 +193,13 @@
       <div class="detail-card">
         <h4>📋 Información del Servicio</h4>
         <div class="detail-grid">
-          <div class="detail-item">
-            <span class="detail-label">N° de Orden</span>
+          <div class="detail-item" *ngIf="userRole === 'CLIENTE'">
+            <span class="detail-label">N° de Solicitud</span>
+            <span class="detail-val">#{{ getNumeroOrden(selectedOrder) }}</span>
+            <small style="color: #94a3b8; font-size: 0.72rem; margin-top: 2px;">(Ref. Sistema: #{{ selectedOrder.id }})</small>
+          </div>
+          <div class="detail-item" *ngIf="userRole !== 'CLIENTE'">
+            <span class="detail-label">N° de Orden Global</span>
             <span class="detail-val">#{{ selectedOrder.id }}</span>
           </div>
           <div class="detail-item">

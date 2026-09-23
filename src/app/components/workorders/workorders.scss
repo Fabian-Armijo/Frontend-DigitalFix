@@ -29,6 +29,12 @@
   }
 }
 
+.header-badges {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
 .role-pill {
   padding: 6px 14px;
   border-radius: 20px;
@@ -51,6 +57,16 @@
     background: #dcfce7;
     color: #15803d;
   }
+}
+
+.client-id-pill {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: #f8fafc;
+  color: #0f172a;
+  border: 1px solid #cbd5e1;
 }
 
 /* Notificaciones Toast */
