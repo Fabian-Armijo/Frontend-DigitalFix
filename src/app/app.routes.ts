@@ -21,7 +21,7 @@ export const routes: Routes = [
       { path: 'dashboard', component: DashboardComponent },
       { path: 'workorders', component: Workorders },
       { path: 'catalog', component: Catalog },
-      { path: '', redirectTo: 'dashboard', pathMatch: 'full' }
+      { path: '', redirectTo: 'workorders', pathMatch: 'full' }
     ]
   },
 

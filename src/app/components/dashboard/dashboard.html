@@ -4,34 +4,27 @@
     <p>Resumen de indicadores clave de la operación.</p>
   </div>
 
-  <!-- KPIs según el rol -->
+  <!-- KPIs para el Administrador -->
   <section class="kpi-grid">
-    <!-- KPI para todos -->
+    <!-- Órdenes Pendientes -->
     <div class="kpi-card">
       <h3>Órdenes Pendientes</h3>
       <p class="number">12</p>
       <span class="status warning">Requieren atención</span>
     </div>
 
-    <!-- KPI solo para Supervisor y Admin -->
-    <div class="kpi-card" *ngIf="userRole === 'ADMIN' || userRole === 'SUPERVISOR'">
+    <!-- Técnicos Asignados -->
+    <div class="kpi-card">
       <h3>Técnicos Asignados</h3>
       <p class="number">5</p>
-      <span class="status info">En ejecución</span>
+      <span class="status info">En ejecución en terreno</span>
     </div>
 
-    <!-- KPI crítico solo para Admin -->
-    <div class="kpi-card" *ngIf="userRole === 'ADMIN'">
+    <!-- Stock Crítico -->
+    <div class="kpi-card">
       <h3>Stock Crítico</h3>
       <p class="number text-danger">3</p>
       <span class="status danger">Repuestos por agotarse</span>
-    </div>
-
-    <!-- KPI para Cliente -->
-    <div class="kpi-card" *ngIf="userRole === 'CLIENTE'">
-      <h3>Mis Equipos en Reparación</h3>
-      <p class="number text-success">2</p>
-      <span class="status success">Revisa el estado en Órdenes</span>
     </div>
   </section>
 </div>

@@ -1,1 +1,212 @@
-<p>workorders works!</p>
+<div class="workorders-container">
+  
+  <!-- CABECERA -->
+  <header class="page-header">
+    <div>
+      <h2>📋 Órdenes de Mantención</h2>
+      <p class="subtitle">Crea tus solicitudes de servicio técnico y realiza seguimiento de su avance en terreno.</p>
+    </div>
+    <div class="header-badges">
+      <span class="role-pill" [ngClass]="userRole.toLowerCase()">
+        Rol actual: {{ userRole }}
+      </span>
+    </div>
+  </header>
+
+  <!-- TOASTS DE NOTIFICACIÓN -->
+  <div *ngIf="mensajeExito" class="toast toast-success">
+    {{ mensajeExito }}
+  </div>
+  <div *ngIf="mensajeError" class="toast toast-danger">
+    {{ mensajeError }}
+  </div>
+
+  <!-- FORMULARIO DE SOLICITUD DE MANTENCIÓN (ROL CLIENTE) -->
+  <section class="request-card">
+    <div class="card-header">
+      <h3>➕ Solicitar Nueva Orden de Mantención</h3>
+      <span class="tip-badge">Servicio a Domicilio / Taller</span>
+    </div>
+
+    <form (ngSubmit)="crearOrden()" class="request-form">
+      <div class="form-grid">
+        <!-- Selector sugerido del Catálogo -->
+        <div class="form-group full-width">
+          <label>¿Qué servicio técnico necesitas? (Sugerido desde Catálogo)</label>
+          <select [(ngModel)]="selectedServiceId" name="selectedServiceId" (change)="onServiceChange()" class="form-control">
+            <option [ngValue]="null">-- Seleccionar servicio del catálogo (Opcional) --</option>
+            <option *ngFor="let s of technicalServices" [ngValue]="s.id">
+              {{ s.name }} — ${{ s.fee | number }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Descripción del equipo y falla -->
+        <div class="form-group full-width">
+          <label>Descripción del equipo y problema <span class="required">*</span></label>
+          <textarea 
+            [(ngModel)]="orderDescription" 
+            name="orderDescription" 
+            rows="2" 
+            placeholder="Ej: Notebook Lenovo ThinkPad no enciende tras descarga eléctrica, emite 3 pitidos..."
+            required
+            class="form-control">
+          </textarea>
+        </div>
+
+        <!-- Notas adicionales o dirección -->
+        <div class="form-group full-width">
+          <label>Detalles de contacto, dirección o notas adicionales</label>
+          <input 
+            type="text" 
+            [(ngModel)]="orderNotes" 
+            name="orderNotes" 
+            placeholder="Ej: Av. Providencia 1234, Depto 501. Timbre B. Atiende en horario de tarde."
+            class="form-control" />
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" [disabled]="guardando || !orderDescription.trim()" class="btn-submit">
+          <span *ngIf="!guardando">🚀 Solicitar Orden de Mantención</span>
+          <span *ngIf="guardando">Enviando solicitud...</span>
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <!-- CONTENIDO PRINCIPAL: DOS COLUMNAS (LISTA Y DETALLE/STEPPER) -->
+  <div class="workspace-grid">
+    
+    <!-- COLUMNA 1: LISTADO DE ÓRDENES -->
+    <section class="orders-column">
+      <div class="column-header">
+        <h3>Historial de Órdenes ({{ ordenesFiltradas.length }})</h3>
+        
+        <!-- Filtros rápidos -->
+        <div class="filter-tabs">
+          <button (click)="filtroEstado = 'TODAS'" [class.active]="filtroEstado === 'TODAS'">Todas</button>
+          <button (click)="filtroEstado = 'ACTIVAS'" [class.active]="filtroEstado === 'ACTIVAS'">Activas</button>
+          <button (click)="filtroEstado = 'FINALIZADAS'" [class.active]="filtroEstado === 'FINALIZADAS'">Cerradas</button>
+        </div>
+      </div>
+
+      <div *ngIf="cargando" class="loading-state">
+        <p>Cargando órdenes de mantención...</p>
+      </div>
+
+      <div *ngIf="!cargando && ordenesFiltradas.length === 0" class="empty-state">
+        <p>📭 No hay órdenes registradas con este filtro.</p>
+      </div>
+
+      <!-- Tarjetas de órdenes -->
+      <div class="orders-list" *ngIf="!cargando && ordenesFiltradas.length > 0">
+        <div 
+          *ngFor="let ord of ordenesFiltradas" 
+          (click)="seleccionarOrden(ord)"
+          class="order-card"
+          [class.selected]="selectedOrder?.id === ord.id">
+          
+          <div class="order-card-top">
+            <span class="order-id">Orden #{{ ord.id }}</span>
+            <span class="status-badge" [ngClass]="getStatusBadgeClass(ord.status)">
+              {{ getStatusLabel(ord.status) }}
+            </span>
+          </div>
+
+          <p class="order-desc">{{ ord.description }}</p>
+
+          <div class="order-card-footer">
+            <span class="order-date">
+              📅 {{ (ord.createdAt | date:'short') || 'Reciente' }}
+            </span>
+            <span class="order-tech" *ngIf="ord.technicianId">
+              👨‍🔧 Técnico #{{ ord.technicianId }}
+            </span>
+            <span class="order-tech-pending" *ngIf="!ord.technicianId">
+              ⏳ Sin técnico asignado
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- COLUMNA 2: SEGUIMIENTO EN TIEMPO REAL (STEPPER VISUAL) -->
+    <section class="tracking-column" *ngIf="selectedOrder">
+      <div class="tracking-header">
+        <div class="tracking-title-box">
+          <span class="tracking-label">Seguimiento en Vivo</span>
+          <h3>Orden de Mantención #{{ selectedOrder.id }}</h3>
+        </div>
+        <span class="status-badge large" [ngClass]="getStatusBadgeClass(selectedOrder.status)">
+          {{ getStatusLabel(selectedOrder.status) }}
+        </span>
+      </div>
+
+      <!-- LÍNEA DE TIEMPO / STEPPER -->
+      <div class="stepper-box">
+        <h4 class="stepper-section-title">📍 Línea de Progreso del Servicio</h4>
+        
+        <div class="stepper-container">
+          <div 
+            *ngFor="let f of fases; let i = index" 
+            class="step-item"
+            [class.completed]="getPasoActual(selectedOrder.status) > f.paso"
+            [class.active]="getPasoActual(selectedOrder.status) === f.paso"
+            [class.pending]="getPasoActual(selectedOrder.status) < f.paso">
+            
+            <!-- Conector entre pasos -->
+            <div class="step-line" *ngIf="i > 0"></div>
+
+            <!-- Círculo del icono del paso -->
+            <div class="step-circle">
+              <span *ngIf="getPasoActual(selectedOrder.status) > f.paso">✓</span>
+              <span *ngIf="getPasoActual(selectedOrder.status) <= f.paso">{{ f.icon }}</span>
+            </div>
+
+            <!-- Etiqueta del paso -->
+            <div class="step-info">
+              <span class="step-name">{{ f.titulo }}</span>
+              <small class="step-desc">{{ f.desc }}</small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DETALLES DE LA ORDEN SELECCIONADA -->
+      <div class="detail-card">
+        <h4>📋 Información del Servicio</h4>
+        <div class="detail-grid">
+          <div class="detail-item">
+            <span class="detail-label">N° de Orden</span>
+            <span class="detail-val">#{{ selectedOrder.id }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Cliente Solicitante</span>
+            <span class="detail-val">Cliente #{{ selectedOrder.customerId }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Técnico Asignado</span>
+            <span class="detail-val" *ngIf="selectedOrder.technicianId">
+              👨‍🔧 Técnico Especialista #{{ selectedOrder.technicianId }}
+            </span>
+            <span class="detail-val text-muted" *ngIf="!selectedOrder.technicianId">
+              ⏳ Pendiente de asignación por Supervisor
+            </span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Fecha de Ingreso</span>
+            <span class="detail-val">{{ (selectedOrder.createdAt | date:'medium') || 'N/A' }}</span>
+          </div>
+        </div>
+
+        <div class="description-box">
+          <span class="detail-label">Requerimiento / Descripción:</span>
+          <p>{{ selectedOrder.description }}</p>
+        </div>
+      </div>
+
+    </section>
+  </div>
+
+</div>

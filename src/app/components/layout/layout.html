@@ -10,7 +10,7 @@
     </div>
 
     <nav class="menu">
-      <a routerLink="/dashboard" routerLinkActive="active" class="menu-item">📊 Dashboard (KPIs)</a>
+      <a routerLink="/dashboard" routerLinkActive="active" class="menu-item" *ngIf="userRole === 'ADMIN'">📊 Dashboard (KPIs)</a>
       <a routerLink="/workorders" routerLinkActive="active" class="menu-item">📋 Órdenes de Trabajo</a>
       <a routerLink="/catalog" routerLinkActive="active" class="menu-item" *ngIf="userRole !== 'CLIENTE'">📦 Catálogo y Repuestos</a>
     </nav>
@@ -21,13 +21,6 @@
         <p class="email">{{ userName || 'Usuario' }}</p>
         <span class="badge" [ngClass]="userRole.toLowerCase()">Rol: {{ userRole }}</span>
       </div>
-      
-      <!-- Selector de rol -->
-      <select class="role-selector" (change)="cambiarRolSimulado($event)">
-        <option value="SUPERVISOR" [selected]="userRole === 'SUPERVISOR'">Probar como Supervisor</option>
-        <option value="ADMIN" [selected]="userRole === 'ADMIN'">Probar como Admin</option>
-        <option value="CLIENTE" [selected]="userRole === 'CLIENTE'">Probar como Cliente</option>
-      </select>
 
       <button class="btn-logout" (click)="logout()">Cerrar Sesión</button>
       

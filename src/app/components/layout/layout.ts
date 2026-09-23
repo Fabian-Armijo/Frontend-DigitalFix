@@ -18,7 +18,7 @@ export class LayoutComponent implements OnInit {
   private cdr = inject(ChangeDetectorRef);
 
   userName: string = '';
-  userRole: string = 'SUPERVISOR';
+  userRole: string = '';
   sidebarOpen: boolean = true;
 
   ngOnInit(): void {
@@ -40,15 +40,16 @@ export class LayoutComponent implements OnInit {
             if (payload.roles && payload.roles.length > 0) {
               this.userRole = payload.roles[0].toUpperCase();
             } else {
-              this.userRole = 'ADMIN';
+              this.userRole = 'CLIENTE';
             }
           } catch {
-            this.userRole = 'ADMIN';
+            this.userRole = 'CLIENTE';
           }
           this.cdr.detectChanges();
         },
         error: () => {
-          this.userRole = 'ADMIN';
+          const idRoles = (account.idTokenClaims as any)?.roles;
+          this.userRole = (idRoles && idRoles.length > 0) ? idRoles[0].toUpperCase() : 'CLIENTE';
           this.cdr.detectChanges();
         }
       });
@@ -57,11 +58,6 @@ export class LayoutComponent implements OnInit {
 
   toggleSidebar(): void {
     this.sidebarOpen = !this.sidebarOpen;
-    this.cdr.detectChanges();
-  }
-
-  cambiarRolSimulado(event: any): void {
-    this.userRole = event.target.value;
     this.cdr.detectChanges();
   }
 
