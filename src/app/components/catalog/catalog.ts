@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MsalService } from '@azure/msal-angular';
 import { CatalogService, TechnicalService, SparePart } from '../../../services/catalog.service';
+import { AuthService } from '../../../services/auth.service';
 import { environment } from '../../../environments/environment';
 
 @Component({
@@ -14,6 +15,7 @@ import { environment } from '../../../environments/environment';
 })
 export class Catalog implements OnInit {
   private catalogService = inject(CatalogService);
+  private authService = inject(AuthService);
   private msalService = inject(MsalService);
   private cdr = inject(ChangeDetectorRef);
 
@@ -54,29 +56,11 @@ export class Catalog implements OnInit {
   }
 
   private obtenerCuentaYRol(): void {
-    let account = this.msalService.instance.getActiveAccount();
-    if (!account) {
-      const accounts = this.msalService.instance.getAllAccounts();
-      if (accounts.length > 0) {
-        account = accounts[0];
-        this.msalService.instance.setActiveAccount(account);
-      }
-    }
-
+    const account = this.authService.getAccount();
     if (account) {
-      this.msalService.acquireTokenSilent({
-        scopes: [environment.api.scope],
-        account: account
-      }).subscribe({
-        next: (response) => {
-          try {
-            const payload = JSON.parse(atob(response.accessToken.split('.')[1]));
-            this.userRole = (payload.roles && payload.roles.length > 0) 
-              ? payload.roles[0].toUpperCase() 
-              : 'ADMIN';
-          } catch {
-            this.userRole = 'ADMIN';
-          }
+      this.authService.getUserRole().subscribe({
+        next: (role) => {
+          this.userRole = role;
           this.cdr.detectChanges();
         },
         error: () => {

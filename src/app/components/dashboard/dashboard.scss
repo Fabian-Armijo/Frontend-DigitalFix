@@ -531,6 +531,26 @@
       &:hover { background: #2563eb; }
     }
 
+    &.btn-edit-order {
+      background: #f1f5f9;
+      color: #1e293b;
+      border: 1px solid #cbd5e1;
+      &:hover { background: #e2e8f0; }
+    }
+
+    &.btn-close-job {
+      background: #059669;
+      color: white;
+      &:hover { background: #047857; }
+    }
+
+    &.btn-cancel-job {
+      background: #fef2f2;
+      color: #b91c1c;
+      border: 1px solid #fecaca;
+      &:hover { background: #fee2e2; }
+    }
+
     &.btn-view {
       background: #f1f5f9;
       color: #334155;

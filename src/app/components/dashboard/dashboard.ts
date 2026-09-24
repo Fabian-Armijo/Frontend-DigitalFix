@@ -7,6 +7,7 @@ import { environment } from '../../../environments/environment';
 import { WorkorderService, WorkOrder, WorkOrderStatus, WorkOrderRequestDTO } from '../../../services/workorder.service';
 import { TechnicianService, Technician, TechnicianStatus, TechnicianRequestDTO } from '../../../services/technician.service';
 import { CatalogService, TechnicalService, SparePart } from '../../../services/catalog.service';
+import { AuthService } from '../../../services/auth.service';
 
 @Component({
   selector: 'app-dashboard',
@@ -17,6 +18,7 @@ import { CatalogService, TechnicalService, SparePart } from '../../../services/c
 })
 export class DashboardComponent implements OnInit {
   private msalService = inject(MsalService);
+  private authService = inject(AuthService);
   private router = inject(Router);
   private cdr = inject(ChangeDetectorRef);
   private workorderService = inject(WorkorderService);
@@ -56,22 +58,12 @@ export class DashboardComponent implements OnInit {
   selectedNewStatus: WorkOrderStatus = 'ASIGNADA';
   guardandoCambioEstado: boolean = false;
 
-  // Modal Crear Orden de Trabajo (CRUD Supervisor)
-  showCreateOrderModal: boolean = false;
-  newOrder: {
-    customerId: number;
-    serviceId: number | null;
-    description: string;
-    notes: string;
-    technicianId: number | null;
-  } = {
-    customerId: 1,
-    serviceId: null,
-    description: '',
-    notes: '',
-    technicianId: null
-  };
-  guardandoNuevaOrden: boolean = false;
+  // Modal Editar Orden de Trabajo (CRUD Supervisor)
+  orderToEdit: WorkOrder | null = null;
+  editOrderDescription: string = '';
+  editOrderCustomerId: number = 1;
+  editOrderSelectedTechId: number | null = null;
+  guardandoEdicionOrden: boolean = false;
 
   // Modal Detalle / Stepper de Orden
   orderDetail: WorkOrder | null = null;
@@ -113,48 +105,28 @@ export class DashboardComponent implements OnInit {
   // AUTENTICACIÓN Y ROLES
   // ==========================================
   verificarSesionYRol(): void {
-    let account = this.msalService.instance.getActiveAccount();
-    if (!account && this.msalService.instance.getAllAccounts().length > 0) {
-      account = this.msalService.instance.getAllAccounts()[0];
-      this.msalService.instance.setActiveAccount(account);
+    const account = this.authService.getAccount();
+    if (!account) {
+      this.router.navigate(['/login']);
+      return;
     }
 
-    if (account) {
-      this.userName = account.name || account.username;
-      this.msalService.acquireTokenSilent({
-        scopes: [environment.api.scope],
-        account: account
-      }).subscribe({
-        next: (response) => {
-          try {
-            const payload = JSON.parse(atob(response.accessToken.split('.')[1]));
-            if (payload.roles && payload.roles.length > 0) {
-              let r = payload.roles[0].toUpperCase();
-              if (r.startsWith('ROLE_')) r = r.substring(5);
-              this.userRole = r;
-            } else {
-              this.userRole = 'CLIENTE';
-            }
-          } catch {
-            this.userRole = 'CLIENTE';
-          }
-          this.procesarAccesoSegunRol();
-        },
-        error: () => {
-          const roles = (account.idTokenClaims as any)?.roles;
-          if (roles && roles.length > 0) {
-            let r = roles[0].toUpperCase();
-            if (r.startsWith('ROLE_')) r = r.substring(5);
-            this.userRole = r;
-          } else {
-            this.userRole = 'CLIENTE';
-          }
-          this.procesarAccesoSegunRol();
-        }
-      });
-    } else {
-      this.router.navigate(['/login']);
-    }
+    this.userName = account.name || account.username;
+
+    this.authService.getUserRole().subscribe({
+      next: (role) => {
+        this.userRole = role;
+        console.log('📌 [DashboardComponent] Usuario:', this.userName, '| Rol resuelto:', this.userRole);
+        this.procesarAccesoSegunRol();
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        console.error('Error al resolver rol en dashboard:', err);
+        this.userRole = 'CLIENTE';
+        this.procesarAccesoSegunRol();
+        this.cdr.detectChanges();
+      }
+    });
   }
 
   private procesarAccesoSegunRol(): void {
@@ -431,88 +403,131 @@ export class DashboardComponent implements OnInit {
   }
 
   // ==========================================
-  // CRUD ÓRDENES: CREAR Y ELIMINAR
+  // OPERACIONES SUPERVISOR: EDITAR, CERRAR Y CANCELAR
   // ==========================================
-  abrirModalCrearOrden(): void {
-    this.showCreateOrderModal = true;
-    this.newOrder = {
-      customerId: 1,
-      serviceId: null,
-      description: '',
-      notes: '',
-      technicianId: this.tecnicosDisponibles[0]?.id || null
-    };
+  abrirModalEditarOrden(ord: WorkOrder): void {
+    this.orderToEdit = ord;
+    this.editOrderDescription = ord.description;
+    this.editOrderCustomerId = ord.customerId;
+    this.editOrderSelectedTechId = ord.technicianId || null;
     this.cdr.detectChanges();
   }
 
-  cerrarModalCrearOrden(): void {
-    this.showCreateOrderModal = false;
+  cerrarModalEditarOrden(): void {
+    this.orderToEdit = null;
     this.cdr.detectChanges();
   }
 
-  onServiceSelect(): void {
-    if (this.newOrder.serviceId) {
-      const s = this.services.find(item => item.id === Number(this.newOrder.serviceId));
-      if (s) {
-        this.newOrder.description = `Mantención de equipo: ${s.name}`;
-      }
-    }
-  }
-
-  guardarNuevaOrden(): void {
-    if (!this.newOrder.description.trim()) {
-      this.mostrarError('Por favor ingresa la descripción del problema.');
+  confirmarEdicionOrden(): void {
+    if (!this.orderToEdit || !this.orderToEdit.id) return;
+    if (!this.editOrderDescription.trim()) {
+      this.mostrarError('La descripción del requerimiento no puede estar vacía.');
       return;
     }
 
-    let descFinal = this.newOrder.description.trim();
-    if (this.newOrder.notes.trim()) {
-      descFinal += ` | Notas: ${this.newOrder.notes.trim()}`;
-    }
+    const orderId = this.orderToEdit.id;
+    this.guardandoEdicionOrden = true;
 
-    this.guardandoNuevaOrden = true;
-    this.workorderService.createWorkOrder({
-      customerId: this.newOrder.customerId,
-      description: descFinal
+    this.workorderService.updateWorkOrder(orderId, {
+      customerId: this.editOrderCustomerId,
+      description: this.editOrderDescription.trim()
     }).subscribe({
-      next: (creada) => {
-        // Si además el Supervisor seleccionó asignar un técnico de inmediato:
-        if (this.newOrder.technicianId && creada.id) {
-          const techId = this.newOrder.technicianId;
-          this.workorderService.assignTechnician(creada.id, techId).subscribe({
-            next: (ordenAsignada) => {
-              this.workOrders = [ordenAsignada, ...this.workOrders];
-              this.technicianService.updateStatus(techId, 'OCUPADO').subscribe({
-                next: (tActual) => {
-                  this.technicians = this.technicians.map(t => t.id === techId ? tActual : t);
+      next: (actualizada) => {
+        // Si además el Supervisor cambió o asignó un técnico durante la edición:
+        if (this.editOrderSelectedTechId && this.editOrderSelectedTechId !== this.orderToEdit?.technicianId) {
+          const nuevoTechId = this.editOrderSelectedTechId;
+          this.workorderService.assignTechnician(orderId, nuevoTechId).subscribe({
+            next: (ordenReasignada) => {
+              this.workOrders = this.workOrders.map(o => o.id === orderId ? ordenReasignada : o);
+              this.technicianService.updateStatus(nuevoTechId, 'OCUPADO').subscribe({
+                next: (t) => {
+                  this.technicians = this.technicians.map(tech => tech.id === t.id ? t : tech);
                   this.cdr.detectChanges();
                 }
               });
-              this.guardandoNuevaOrden = false;
-              this.cerrarModalCrearOrden();
-              this.mostrarExito(`🎉 Orden #${creada.id} creada y asignada inmediatamente al técnico.`);
+              this.guardandoEdicionOrden = false;
+              this.cerrarModalEditarOrden();
+              this.mostrarExito(`✏️ ¡Orden #${orderId} actualizada y técnico asignado!`);
               this.cdr.detectChanges();
             },
             error: () => {
-              this.workOrders = [creada, ...this.workOrders];
-              this.guardandoNuevaOrden = false;
-              this.cerrarModalCrearOrden();
-              this.mostrarExito(`🎉 Orden #${creada.id} creada con éxito.`);
+              this.workOrders = this.workOrders.map(o => o.id === orderId ? actualizada : o);
+              this.guardandoEdicionOrden = false;
+              this.cerrarModalEditarOrden();
+              this.mostrarExito(`✏️ Orden #${orderId} actualizada.`);
               this.cdr.detectChanges();
             }
           });
         } else {
-          this.workOrders = [creada, ...this.workOrders];
-          this.guardandoNuevaOrden = false;
-          this.cerrarModalCrearOrden();
-          this.mostrarExito(`🎉 Orden #${creada.id} creada con éxito.`);
+          this.workOrders = this.workOrders.map(o => o.id === orderId ? actualizada : o);
+          this.guardandoEdicionOrden = false;
+          this.cerrarModalEditarOrden();
+          this.mostrarExito(`✏️ Orden #${orderId} actualizada correctamente.`);
           this.cdr.detectChanges();
         }
       },
       error: (err) => {
-        console.error('Error al crear orden:', err);
-        this.guardandoNuevaOrden = false;
-        this.mostrarError(`Error al registrar orden (Status: ${err.status})`);
+        console.error('Error al actualizar orden:', err);
+        this.guardandoEdicionOrden = false;
+        this.mostrarError(`No se pudo actualizar la orden (Status: ${err.status})`);
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  // Cierre directo de trabajo por el Supervisor (Regla Caso 6)
+  cerrarTrabajoDirecto(ord: WorkOrder): void {
+    if (!ord || !ord.id) return;
+    const orderId = ord.id;
+
+    if (ord.status === 'CREADA' && !ord.technicianId) {
+      this.mostrarError('⚠️ La orden aún está CREADA y sin técnico asignado. Primero debes aceptarla y asignarle un técnico.');
+      return;
+    }
+
+    this.workorderService.updateStatus(orderId, 'CERRADA').subscribe({
+      next: (actualizada) => {
+        this.workOrders = this.workOrders.map(o => o.id === orderId ? actualizada : o);
+        // Liberar al técnico asignado volviéndolo a DISPONIBLE en la base de datos
+        if (ord.technicianId) {
+          this.technicianService.updateStatus(ord.technicianId, 'DISPONIBLE').subscribe({
+            next: (techLibre) => {
+              this.technicians = this.technicians.map(t => t.id === techLibre.id ? techLibre : t);
+              this.cdr.detectChanges();
+            }
+          });
+        }
+        this.mostrarExito(`✅ ¡Trabajo #${orderId} cerrado con éxito! El técnico especialista fue liberado a "DISPONIBLE".`);
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        this.mostrarError(`Error al cerrar orden: ${err.error?.message || err.status}`);
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  // Cancelación directa por el Supervisor
+  cancelarOrdenDirecto(ord: WorkOrder): void {
+    if (!ord || !ord.id) return;
+    const orderId = ord.id;
+
+    this.workorderService.updateStatus(orderId, 'CANCELADA').subscribe({
+      next: (actualizada) => {
+        this.workOrders = this.workOrders.map(o => o.id === orderId ? actualizada : o);
+        if (ord.technicianId) {
+          this.technicianService.updateStatus(ord.technicianId, 'DISPONIBLE').subscribe({
+            next: (techLibre) => {
+              this.technicians = this.technicians.map(t => t.id === techLibre.id ? techLibre : t);
+              this.cdr.detectChanges();
+            }
+          });
+        }
+        this.mostrarExito(`❌ Orden #${orderId} marcada como CANCELADA.`);
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        this.mostrarError(`Error al cancelar orden: ${err.error?.message || err.status}`);
         this.cdr.detectChanges();
       }
     });

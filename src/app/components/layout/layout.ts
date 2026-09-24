@@ -4,6 +4,7 @@ import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { MsalService } from '@azure/msal-angular';
 import { environment } from '../../../environments/environment';
+import { AuthService } from '../../../services/auth.service';
 
 @Component({
   selector: 'app-layout',
@@ -14,6 +15,7 @@ import { environment } from '../../../environments/environment';
 })
 export class LayoutComponent implements OnInit {
   private msalService = inject(MsalService);
+  private authService = inject(AuthService);
   private http = inject(HttpClient);
   private cdr = inject(ChangeDetectorRef);
 
@@ -22,42 +24,16 @@ export class LayoutComponent implements OnInit {
   sidebarOpen: boolean = true;
 
   ngOnInit(): void {
-    let account = this.msalService.instance.getActiveAccount();
-    if (!account && this.msalService.instance.getAllAccounts().length > 0) {
-      account = this.msalService.instance.getAllAccounts()[0];
-      this.msalService.instance.setActiveAccount(account);
-    }
-
+    const account = this.authService.getAccount();
     if (account) {
-      this.userName = account.username;
-      this.msalService.acquireTokenSilent({
-        scopes: [environment.api.scope],
-        account: account
-      }).subscribe({
-        next: (response) => {
-          try {
-            const payload = JSON.parse(atob(response.accessToken.split('.')[1]));
-            if (payload.roles && payload.roles.length > 0) {
-              let r = payload.roles[0].toUpperCase();
-              if (r.startsWith('ROLE_')) r = r.substring(5);
-              this.userRole = r;
-            } else {
-              this.userRole = 'CLIENTE';
-            }
-          } catch {
-            this.userRole = 'CLIENTE';
-          }
+      this.userName = account.name || account.username;
+      this.authService.getUserRole().subscribe({
+        next: (role) => {
+          this.userRole = role;
           this.cdr.detectChanges();
         },
         error: () => {
-          const idRoles = (account.idTokenClaims as any)?.roles;
-          if (idRoles && idRoles.length > 0) {
-            let r = idRoles[0].toUpperCase();
-            if (r.startsWith('ROLE_')) r = r.substring(5);
-            this.userRole = r;
-          } else {
-            this.userRole = 'CLIENTE';
-          }
+          this.userRole = 'CLIENTE';
           this.cdr.detectChanges();
         }
       });

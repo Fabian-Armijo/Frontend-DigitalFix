@@ -59,6 +59,11 @@ export class WorkorderService {
     return this.http.patch<WorkOrder>(`${this.baseUrl}/${orderId}/status?newStatus=${newStatus}`, {});
   }
 
+  // Editar datos de orden (Actor: Supervisor)
+  updateWorkOrder(id: number, dto: WorkOrderRequestDTO): Observable<WorkOrder> {
+    return this.http.put<WorkOrder>(`${this.baseUrl}/${id}`, dto);
+  }
+
   // Eliminar orden
   deleteWorkOrder(id: number): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/${id}`);

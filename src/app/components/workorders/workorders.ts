@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { WorkorderService, WorkOrder, WorkOrderStatus } from '../../../services/workorder.service';
 import { CatalogService, TechnicalService } from '../../../services/catalog.service';
+import { AuthService } from '../../../services/auth.service';
 import { environment } from '../../../environments/environment';
 import { MsalService } from '@azure/msal-angular';
 
@@ -16,6 +17,7 @@ import { MsalService } from '@azure/msal-angular';
 export class Workorders implements OnInit {
   private workorderService = inject(WorkorderService);
   private catalogService = inject(CatalogService);
+  private authService = inject(AuthService);
   private msalService = inject(MsalService);
   private cdr = inject(ChangeDetectorRef);
 
@@ -82,32 +84,19 @@ export class Workorders implements OnInit {
   }
 
   obtenerRolUsuario(): void {
-    const account = this.msalService.instance.getActiveAccount() || this.msalService.instance.getAllAccounts()[0];
+    const account = this.authService.getAccount();
     if (account) {
       this.userEmail = account.username;
       this.customerId = this.generarCustomerId(account.username);
 
-      this.msalService.acquireTokenSilent({
-        scopes: [environment.api.scope],
-        account: account
-      }).subscribe({
-        next: (response) => {
-          try {
-            const payload = JSON.parse(atob(response.accessToken.split('.')[1]));
-            if (payload.roles && payload.roles.length > 0) {
-              this.userRole = payload.roles[0].toUpperCase();
-            } else {
-              this.userRole = 'CLIENTE';
-            }
-          } catch {
-            this.userRole = 'CLIENTE';
-          }
+      this.authService.getUserRole().subscribe({
+        next: (role) => {
+          this.userRole = role;
           this.revisarSeleccionOrden();
           this.cdr.detectChanges();
         },
         error: () => {
-          const roles = (account.idTokenClaims as any)?.roles;
-          this.userRole = (roles && roles.length > 0) ? roles[0].toUpperCase() : 'CLIENTE';
+          this.userRole = 'CLIENTE';
           this.revisarSeleccionOrden();
           this.cdr.detectChanges();
         }

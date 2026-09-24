@@ -109,16 +109,13 @@
     <!-- Barra de acciones y filtros de órdenes -->
     <div class="section-toolbar">
       <div class="toolbar-title-box">
-        <h3>Gestión y Aceptación de Órdenes</h3>
-        <p>Acepta órdenes nuevas, asigna un técnico especialista y cambia el estado del trabajo.</p>
+        <h3>Órdenes de Trabajo en Base de Datos</h3>
+        <p>Acepta órdenes de clientes, asigna técnicos especialistas, edita requerimientos o cierra y cancela trabajos.</p>
       </div>
 
       <div class="toolbar-actions">
         <button class="btn btn-secondary" (click)="cargarOrdenes()" [disabled]="cargando">
-          🔄 Refrescar
-        </button>
-        <button class="btn btn-primary" (click)="abrirModalCrearOrden()">
-          ➕ Nueva Orden de Trabajo
+          🔄 Refrescar Órdenes
         </button>
       </div>
     </div>
@@ -203,24 +200,50 @@
             <td>
               <div class="action-buttons-cell">
                 
-                <!-- BOTÓN PRINCIPAL: Aceptar y Asignar Técnico (Para órdenes CREADAS o para reasignar) -->
+                <!-- Aceptar y Asignar Técnico (Para órdenes CREADAS o sin técnico) -->
                 <button 
-                  *ngIf="ord.status === 'CREADA'" 
+                  *ngIf="ord.status === 'CREADA' || !ord.technicianId" 
                   class="btn-action btn-accept" 
                   (click)="abrirModalAsignar(ord)"
-                  title="Aceptar orden y asignar un técnico disponible">
+                  title="Aceptar orden y asignar un técnico de la base de datos">
                   🤝 Aceptar / Asignar
                 </button>
 
-                <!-- BOTÓN: Cambiar Estado -->
+                <!-- Editar Orden (CRUD: Modificar requerimiento o reasignar técnico) -->
+                <button 
+                  class="btn-action btn-edit-order" 
+                  (click)="abrirModalEditarOrden(ord)"
+                  title="Editar requerimiento o reasignar técnico">
+                  ✏️ Editar
+                </button>
+
+                <!-- Cambiar Estado (Ciclo de Vida) -->
                 <button 
                   class="btn-action btn-status" 
                   (click)="abrirModalEstadoOrden(ord)"
-                  title="Avanzar o cambiar estado de la orden">
+                  title="Cambiar estado del trabajo">
                   🔄 Estado
                 </button>
 
-                <!-- BOTÓN: Ver Seguimiento / Stepper -->
+                <!-- Cerrar Trabajo Directo -->
+                <button 
+                  *ngIf="ord.status !== 'CERRADA' && ord.status !== 'CANCELADA' && ord.technicianId" 
+                  class="btn-action btn-close-job" 
+                  (click)="cerrarTrabajoDirecto(ord)"
+                  title="Cerrar trabajo y liberar técnico">
+                  ✅ Cerrar
+                </button>
+
+                <!-- Cancelar Orden Directo -->
+                <button 
+                  *ngIf="ord.status !== 'CERRADA' && ord.status !== 'CANCELADA'" 
+                  class="btn-action btn-cancel-job" 
+                  (click)="cancelarOrdenDirecto(ord)"
+                  title="Cancelar orden de trabajo">
+                  ❌ Cancelar
+                </button>
+
+                <!-- Ver Seguimiento / Stepper -->
                 <button 
                   class="btn-action btn-view" 
                   (click)="verDetalleOrden(ord)"
@@ -228,11 +251,11 @@
                   👁️ Ver
                 </button>
 
-                <!-- BOTÓN: Eliminar o Cancelar -->
+                <!-- Eliminar de la base de datos -->
                 <button 
                   class="btn-action btn-delete" 
                   (click)="solicitarEliminarOrden(ord)"
-                  title="Eliminar o cancelar orden">
+                  title="Eliminar orden">
                   🗑️
                 </button>
               </div>
@@ -543,68 +566,52 @@
   </div>
 
   <!-- ========================================================= -->
-  <!-- MODAL: REGISTRAR NUEVA ORDEN DE TRABAJO (SUPERVISOR)     -->
+  <!-- MODAL: EDITAR ORDEN DE TRABAJO (CRUD SUPERVISOR)          -->
   <!-- ========================================================= -->
-  <div class="modal-backdrop" *ngIf="showCreateOrderModal">
+  <div class="modal-backdrop" *ngIf="orderToEdit">
     <div class="modal-dialog">
       <div class="modal-header">
-        <h3>➕ Registrar Nueva Orden de Mantención</h3>
-        <button class="modal-close" (click)="cerrarModalCrearOrden()">✕</button>
+        <h3>✏️ Editar Orden de Trabajo #{{ orderToEdit.id }}</h3>
+        <button class="modal-close" (click)="cerrarModalEditarOrden()">✕</button>
       </div>
 
       <div class="modal-body">
         <div class="form-group">
-          <label>ID del Cliente Solicitante: <span class="required">*</span></label>
-          <input type="number" [(ngModel)]="newOrder.customerId" min="1" class="form-control" />
+          <label>ID del Cliente Solicitante:</label>
+          <input type="number" [(ngModel)]="editOrderCustomerId" min="1" class="form-control" />
         </div>
 
         <div class="form-group">
-          <label>Servicio Sugerido del Catálogo (Opcional):</label>
-          <select [(ngModel)]="newOrder.serviceId" (change)="onServiceSelect()" class="form-control">
-            <option [ngValue]="null">-- Seleccionar servicio --</option>
-            <option *ngFor="let s of services" [ngValue]="s.id">
-              {{ s.name }} (${{ s.fee | number }})
-            </option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label>Descripción de la Falla / Requerimiento: <span class="required">*</span></label>
+          <label>Descripción del Requerimiento / Falla: <span class="required">*</span></label>
           <textarea 
-            [(ngModel)]="newOrder.description" 
+            [(ngModel)]="editOrderDescription" 
             rows="3" 
             class="form-control" 
-            placeholder="Ej: Pantalla rota de laptop Dell Inspiron, teclado sin respuesta...">
+            placeholder="Descripción detallada de la falla...">
           </textarea>
         </div>
 
         <div class="form-group">
-          <label>Notas de contacto o dirección:</label>
-          <input 
-            type="text" 
-            [(ngModel)]="newOrder.notes" 
-            class="form-control" 
-            placeholder="Ej: Retiro en taller o visita en Providencia 230" />
-        </div>
-
-        <div class="form-group">
-          <label>Asignar Técnico de Inmediato (Opcional):</label>
-          <select [(ngModel)]="newOrder.technicianId" class="form-control">
-            <option [ngValue]="null">-- Dejar pendiente de asignación (CREADA) --</option>
-            <option *ngFor="let t of tecnicosDisponibles" [ngValue]="t.id">
-              {{ t.firstName }} {{ t.lastName }} ({{ t.specialty }})
+          <label>Técnico Asignado (Base de Datos):</label>
+          <select [(ngModel)]="editOrderSelectedTechId" class="form-control">
+            <option [ngValue]="null">-- Sin técnico asignado --</option>
+            <option *ngFor="let t of technicians" [ngValue]="t.id">
+              {{ t.status === 'DISPONIBLE' ? '🟢' : '🟠' }} {{ t.firstName }} {{ t.lastName }} — {{ t.specialty }} ({{ t.status }})
             </option>
           </select>
+          <small class="form-hint">
+            💡 Puedes asignar o reasignar cualquier técnico registrado en la base de datos a esta orden.
+          </small>
         </div>
       </div>
 
       <div class="modal-footer">
-        <button class="btn btn-secondary" (click)="cerrarModalCrearOrden()" [disabled]="guardandoNuevaOrden">
+        <button class="btn btn-secondary" (click)="cerrarModalEditarOrden()" [disabled]="guardandoEdicionOrden">
           Cancelar
         </button>
-        <button class="btn btn-primary" (click)="guardarNuevaOrden()" [disabled]="guardandoNuevaOrden || !newOrder.description.trim()">
-          <span *ngIf="!guardandoNuevaOrden">🚀 Crear Orden</span>
-          <span *ngIf="guardandoNuevaOrden">Creando orden...</span>
+        <button class="btn btn-primary" (click)="confirmarEdicionOrden()" [disabled]="guardandoEdicionOrden || !editOrderDescription.trim()">
+          <span *ngIf="!guardandoEdicionOrden">💾 Guardar Cambios</span>
+          <span *ngIf="guardandoEdicionOrden">Guardando...</span>
         </button>
       </div>
     </div>
