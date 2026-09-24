@@ -10,7 +10,7 @@
     </div>
 
     <nav class="menu">
-      <a routerLink="/dashboard" routerLinkActive="active" class="menu-item" *ngIf="userRole === 'ADMIN'">📊 Dashboard (KPIs)</a>
+      <a routerLink="/dashboard" routerLinkActive="active" class="menu-item" *ngIf="userRole === 'ADMIN' || userRole === 'SUPERVISOR'">📊 Dashboard</a>
       <a routerLink="/workorders" routerLinkActive="active" class="menu-item">📋 Órdenes de Trabajo</a>
       <a routerLink="/catalog" routerLinkActive="active" class="menu-item" *ngIf="userRole !== 'CLIENTE'">📦 Catálogo y Repuestos</a>
     </nav>

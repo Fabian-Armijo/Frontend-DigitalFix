@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { MsalGuard } from '@azure/msal-angular';
+import { authGuard } from './core/guards/auth-guard';
 
 // Importaciones de vistas
 import { LoginComponent } from './components/login/login';
@@ -9,22 +9,24 @@ import { Workorders } from './components/workorders/workorders';
 import { Catalog } from './components/catalog/catalog';
 
 export const routes: Routes = [
-  // Ruta pública sin menú lateral
+  // Redirección de la raíz a la pantalla de login
+  { path: '', redirectTo: 'login', pathMatch: 'full' },
+
+  // Ruta pública sin menú lateral (Login)
   { path: 'login', component: LoginComponent },
 
   // Rutas protegidas que comparten el menú lateral y barra superior (Layout)
   {
     path: '',
     component: LayoutComponent,
-    canActivate: [MsalGuard],
+    canActivate: [authGuard],
     children: [
       { path: 'dashboard', component: DashboardComponent },
       { path: 'workorders', component: Workorders },
-      { path: 'catalog', component: Catalog },
-      { path: '', redirectTo: 'workorders', pathMatch: 'full' }
+      { path: 'catalog', component: Catalog }
     ]
   },
 
-  // Redirección por defecto
-  { path: '**', redirectTo: '/login' }
+  // Redirección por defecto para cualquier ruta no encontrada
+  { path: '**', redirectTo: 'login' }
 ];

@@ -1,30 +1,776 @@
-<div class="kpis-wrapper">
-  <div class="dashboard-header">
-    <h2>Panel de Métricas (KPIs)</h2>
-    <p>Resumen de indicadores clave de la operación.</p>
+<div class="dashboard-page">
+
+  <!-- ENCABEZADO PRINCIPAL -->
+  <header class="dashboard-main-header">
+    <div class="header-left">
+      <div class="header-badge-row">
+        <span class="role-badge" [ngClass]="userRole.toLowerCase()">
+          Rol: {{ userRole }}
+        </span>
+        <span class="system-badge">🔧 Sistema DigitalFix</span>
+      </div>
+      <h2>Panel de Control y Supervisión Operativa</h2>
+      <p class="header-desc">
+        Aceptación y asignación de órdenes de trabajo, control de técnicos en terreno y seguimiento en vivo.
+      </p>
+    </div>
+    
+    <div class="header-right">
+      <div class="user-greeting-box">
+        <span class="user-icon">👤</span>
+        <div class="user-details">
+          <span class="user-name">{{ userName || 'Supervisor' }}</span>
+          <small class="user-email">Acceso con Microsoft Entra ID</small>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ALERTAS / TOASTS DE NOTIFICACIÓN -->
+  <div *ngIf="mensajeExito" class="toast toast-success">
+    <span>{{ mensajeExito }}</span>
+  </div>
+  <div *ngIf="mensajeError" class="toast toast-danger">
+    <span>{{ mensajeError }}</span>
   </div>
 
-  <!-- KPIs para el Administrador -->
+  <!-- TARJETAS DE KPIS SUPERIORES -->
   <section class="kpi-grid">
-    <!-- Órdenes Pendientes -->
-    <div class="kpi-card">
-      <h3>Órdenes Pendientes</h3>
-      <p class="number">12</p>
-      <span class="status warning">Requieren atención</span>
+    <!-- Órdenes Pendientes de Aceptación -->
+    <div class="kpi-card" [class.highlight]="totalOrdenesPendientes > 0">
+      <div class="kpi-header">
+        <span class="kpi-title">Órdenes Pendientes</span>
+        <span class="kpi-icon">⚠️</span>
+      </div>
+      <p class="number" [class.text-warning]="totalOrdenesPendientes > 0">{{ totalOrdenesPendientes }}</p>
+      <span class="status warning" *ngIf="totalOrdenesPendientes > 0">Requieren aceptación y asignación</span>
+      <span class="status success" *ngIf="totalOrdenesPendientes === 0">Al día sin pendientes</span>
     </div>
 
-    <!-- Técnicos Asignados -->
+    <!-- Órdenes en Proceso / Terreno -->
     <div class="kpi-card">
-      <h3>Técnicos Asignados</h3>
-      <p class="number">5</p>
-      <span class="status info">En ejecución en terreno</span>
+      <div class="kpi-header">
+        <span class="kpi-title">Órdenes en Progreso</span>
+        <span class="kpi-icon">⚙️</span>
+      </div>
+      <p class="number text-info">{{ totalOrdenesEnCurso }}</p>
+      <span class="status info">Asignadas o en terreno</span>
     </div>
 
-    <!-- Stock Crítico -->
+    <!-- Técnicos Disponibles -->
     <div class="kpi-card">
-      <h3>Stock Crítico</h3>
-      <p class="number text-danger">3</p>
-      <span class="status danger">Repuestos por agotarse</span>
+      <div class="kpi-header">
+        <span class="kpi-title">Técnicos Disponibles</span>
+        <span class="kpi-icon">👨‍🔧</span>
+      </div>
+      <p class="number text-success">{{ totalTecnicosDisponibles }} <small style="font-size: 1rem; color: #64748b;">/ {{ technicians.length }}</small></p>
+      <span class="status success">Listos para ser asignados</span>
+    </div>
+
+    <!-- Órdenes Finalizadas -->
+    <div class="kpi-card">
+      <div class="kpi-header">
+        <span class="kpi-title">Órdenes Cerradas</span>
+        <span class="kpi-icon">✅</span>
+      </div>
+      <p class="number">{{ totalOrdenesCerradas }}</p>
+      <span class="status success">Trabajos completados</span>
     </div>
   </section>
+
+  <!-- BARRA DE PESTAÑAS PRINCIPAL (TABS) -->
+  <div class="dashboard-tabs">
+    <button 
+      class="tab-btn" 
+      [class.active]="activeTab === 'workorders'"
+      (click)="activeTab = 'workorders'">
+      📋 Órdenes de Trabajo ({{ workOrders.length }})
+      <span class="badge-tab" *ngIf="totalOrdenesPendientes > 0">{{ totalOrdenesPendientes }} por aceptar</span>
+    </button>
+    <button 
+      class="tab-btn" 
+      [class.active]="activeTab === 'technicians'"
+      (click)="activeTab = 'technicians'">
+      👨‍🔧 Técnicos Disponibles ({{ totalTecnicosDisponibles }}/{{ technicians.length }})
+    </button>
+    <button 
+      class="tab-btn" 
+      [class.active]="activeTab === 'kpis'"
+      (click)="activeTab = 'kpis'">
+      📊 Resumen de Métricas (KPIs)
+    </button>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- PESTAÑA 1: GESTIÓN Y CRUD DE ÓRDENES DE TRABAJO           -->
+  <!-- ========================================================= -->
+  <section class="tab-content" *ngIf="activeTab === 'workorders'">
+    
+    <!-- Barra de acciones y filtros de órdenes -->
+    <div class="section-toolbar">
+      <div class="toolbar-title-box">
+        <h3>Gestión y Aceptación de Órdenes</h3>
+        <p>Acepta órdenes nuevas, asigna un técnico especialista y cambia el estado del trabajo.</p>
+      </div>
+
+      <div class="toolbar-actions">
+        <button class="btn btn-secondary" (click)="cargarOrdenes()" [disabled]="cargando">
+          🔄 Refrescar
+        </button>
+        <button class="btn btn-primary" (click)="abrirModalCrearOrden()">
+          ➕ Nueva Orden de Trabajo
+        </button>
+      </div>
+    </div>
+
+    <!-- Filtros de Estado de Órdenes -->
+    <div class="filter-bar">
+      <button 
+        class="filter-chip" 
+        [class.active]="filtroOrden === 'TODAS'" 
+        (click)="filtroOrden = 'TODAS'">
+        Todas ({{ workOrders.length }})
+      </button>
+      <button 
+        class="filter-chip chip-warning" 
+        [class.active]="filtroOrden === 'CREADA'" 
+        (click)="filtroOrden = 'CREADA'">
+        ⚠️ Por Aceptar / Creadas ({{ totalOrdenesPendientes }})
+      </button>
+      <button 
+        class="filter-chip chip-info" 
+        [class.active]="filtroOrden === 'EN_CURSO'" 
+        (click)="filtroOrden = 'EN_CURSO'">
+        ⚙️ En Progreso ({{ totalOrdenesEnCurso }})
+      </button>
+      <button 
+        class="filter-chip chip-success" 
+        [class.active]="filtroOrden === 'FINALIZADAS'" 
+        (click)="filtroOrden = 'FINALIZADAS'">
+        ✅ Cerradas / Canceladas ({{ totalOrdenesCerradas }})
+      </button>
+    </div>
+
+    <!-- Indicador de Carga -->
+    <div *ngIf="cargando" class="loading-state">
+      <p>Cargando órdenes de trabajo...</p>
+    </div>
+
+    <!-- Estado Vacío -->
+    <div *ngIf="!cargando && ordenesFiltradas.length === 0" class="empty-state">
+      <p>📭 No hay órdenes de trabajo en esta categoría.</p>
+    </div>
+
+    <!-- TABLA DE ÓRDENES DE TRABAJO -->
+    <div class="table-card" *ngIf="!cargando && ordenesFiltradas.length > 0">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th style="width: 70px;">ID</th>
+            <th style="width: 120px;">Cliente</th>
+            <th>Descripción / Servicio Solicitado</th>
+            <th style="width: 220px;">Técnico Asignado</th>
+            <th style="width: 150px;">Estado</th>
+            <th style="width: 130px;">Fecha</th>
+            <th style="width: 280px; text-align: center;">Acciones Operativas</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let ord of ordenesFiltradas" [class.row-pending]="ord.status === 'CREADA'">
+            <td class="col-id">#{{ ord.id }}</td>
+            <td>
+              <span class="customer-tag">👤 Cliente #{{ ord.customerId }}</span>
+            </td>
+            <td>
+              <p class="table-desc">{{ ord.description }}</p>
+            </td>
+            <td>
+              <div *ngIf="ord.technicianId" class="tech-tag">
+                👨‍🔧 <strong>{{ getNombreTecnico(ord.technicianId) }}</strong>
+              </div>
+              <div *ngIf="!ord.technicianId" class="tech-tag-unassigned">
+                ⚠️ Sin técnico asignado
+              </div>
+            </td>
+            <td>
+              <span class="status-badge" [ngClass]="getStatusBadgeClass(ord.status)">
+                {{ getStatusLabel(ord.status) }}
+              </span>
+            </td>
+            <td class="col-date">
+              {{ (ord.createdAt | date:'shortDate') || 'Reciente' }}
+            </td>
+            <td>
+              <div class="action-buttons-cell">
+                
+                <!-- BOTÓN PRINCIPAL: Aceptar y Asignar Técnico (Para órdenes CREADAS o para reasignar) -->
+                <button 
+                  *ngIf="ord.status === 'CREADA'" 
+                  class="btn-action btn-accept" 
+                  (click)="abrirModalAsignar(ord)"
+                  title="Aceptar orden y asignar un técnico disponible">
+                  🤝 Aceptar / Asignar
+                </button>
+
+                <!-- BOTÓN: Cambiar Estado -->
+                <button 
+                  class="btn-action btn-status" 
+                  (click)="abrirModalEstadoOrden(ord)"
+                  title="Avanzar o cambiar estado de la orden">
+                  🔄 Estado
+                </button>
+
+                <!-- BOTÓN: Ver Seguimiento / Stepper -->
+                <button 
+                  class="btn-action btn-view" 
+                  (click)="verDetalleOrden(ord)"
+                  title="Ver línea de tiempo y detalles">
+                  👁️ Ver
+                </button>
+
+                <!-- BOTÓN: Eliminar o Cancelar -->
+                <button 
+                  class="btn-action btn-delete" 
+                  (click)="solicitarEliminarOrden(ord)"
+                  title="Eliminar o cancelar orden">
+                  🗑️
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </section>
+
+  <!-- ========================================================= -->
+  <!-- PESTAÑA 2: GESTIÓN Y CRUD DE TÉCNICOS DISPONIBLES         -->
+  <!-- ========================================================= -->
+  <section class="tab-content" *ngIf="activeTab === 'technicians'">
+    
+    <!-- Barra de acciones y filtros de técnicos -->
+    <div class="section-toolbar">
+      <div class="toolbar-title-box">
+        <h3>Técnicos Especialistas y Disponibilidad</h3>
+        <p>Monitorea técnicos disponibles, cambia su estado en terreno y administra sus perfiles.</p>
+      </div>
+
+      <div class="toolbar-actions">
+        <button class="btn btn-secondary" (click)="cargarTecnicos()">
+          🔄 Refrescar
+        </button>
+        <button class="btn btn-primary" (click)="abrirCrearTecnico()">
+          ➕ Registrar Nuevo Técnico
+        </button>
+      </div>
+    </div>
+
+    <!-- Filtros de Técnicos -->
+    <div class="filter-bar">
+      <button 
+        class="filter-chip" 
+        [class.active]="filtroTecnico === 'TODOS'" 
+        (click)="filtroTecnico = 'TODOS'">
+        Todos ({{ technicians.length }})
+      </button>
+      <button 
+        class="filter-chip chip-success" 
+        [class.active]="filtroTecnico === 'DISPONIBLE'" 
+        (click)="filtroTecnico = 'DISPONIBLE'">
+        🟢 Disponibles ({{ totalTecnicosDisponibles }})
+      </button>
+      <button 
+        class="filter-chip chip-warning" 
+        [class.active]="filtroTecnico === 'OCUPADO'" 
+        (click)="filtroTecnico = 'OCUPADO'">
+        🟠 Ocupados en Terreno ({{ totalTecnicosOcupados }})
+      </button>
+      <button 
+        class="filter-chip chip-neutral" 
+        [class.active]="filtroTecnico === 'INACTIVO'" 
+        (click)="filtroTecnico = 'INACTIVO'">
+        ⚪ Inactivos
+      </button>
+    </div>
+
+    <!-- Estado vacío de técnicos -->
+    <div *ngIf="tecnicosFiltrados.length === 0" class="empty-state">
+      <p>👨‍🔧 No hay técnicos registrados con este filtro.</p>
+      <button class="btn btn-primary" style="margin-top: 10px;" (click)="abrirCrearTecnico()">
+        Registrar Primer Técnico
+      </button>
+    </div>
+
+    <!-- GRILLA DE TARJETAS DE TÉCNICOS -->
+    <div class="tech-grid" *ngIf="tecnicosFiltrados.length > 0">
+      <div class="tech-card" *ngFor="let tech of tecnicosFiltrados" [class.tech-busy]="tech.status === 'OCUPADO'">
+        
+        <div class="tech-card-header">
+          <div class="tech-avatar-box">
+            <div class="tech-avatar">👨‍🔧</div>
+            <div>
+              <h4 class="tech-name">{{ tech.firstName }} {{ tech.lastName }}</h4>
+              <span class="tech-specialty">{{ tech.specialty }}</span>
+            </div>
+          </div>
+          <span class="badge-tech-status" [ngClass]="getTechStatusBadgeClass(tech.status)">
+            {{ tech.status }}
+          </span>
+        </div>
+
+        <div class="tech-details-list">
+          <div class="tech-detail-row">
+            <span class="icon">✉️</span>
+            <span class="text">{{ tech.email }}</span>
+          </div>
+          <div class="tech-detail-row">
+            <span class="icon">📞</span>
+            <span class="text">{{ tech.phone || 'Sin teléfono' }}</span>
+          </div>
+        </div>
+
+        <!-- ACCIONES RÁPIDAS DE CAMBIO DE ESTADO DEL TÉCNICO -->
+        <div class="tech-status-actions">
+          <span class="status-action-label">Cambiar Estado Operativo:</span>
+          <div class="status-buttons-group">
+            <button 
+              class="btn-status-quick status-disp" 
+              [class.active]="tech.status === 'DISPONIBLE'"
+              (click)="cambiarEstadoTecnico(tech, 'DISPONIBLE')">
+              🟢 Disponible
+            </button>
+            <button 
+              class="btn-status-quick status-ocup" 
+              [class.active]="tech.status === 'OCUPADO'"
+              (click)="cambiarEstadoTecnico(tech, 'OCUPADO')">
+              🟠 Ocupado
+            </button>
+            <button 
+              class="btn-status-quick status-inac" 
+              [class.active]="tech.status === 'INACTIVO'"
+              (click)="cambiarEstadoTecnico(tech, 'INACTIVO')">
+              ⚪ Inactivo
+            </button>
+          </div>
+        </div>
+
+        <!-- ACCIONES CRUD TÉCNICO -->
+        <div class="tech-card-footer">
+          <button class="btn-card-action btn-edit" (click)="abrirEditarTecnico(tech)">
+            ✏️ Editar Datos
+          </button>
+          <button class="btn-card-action btn-del" (click)="solicitarEliminarTecnico(tech)">
+            🗑️ Eliminar
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ========================================================= -->
+  <!-- PESTAÑA 3: RESUMEN DE MÉTRICAS (KPIS)                     -->
+  <!-- ========================================================= -->
+  <section class="tab-content" *ngIf="activeTab === 'kpis'">
+    <div class="section-toolbar">
+      <div class="toolbar-title-box">
+        <h3>Métricas Generales y KPIs de la Operación</h3>
+        <p>Visión consolidada de demanda de mantenciones y control de inventario de repuestos.</p>
+      </div>
+    </div>
+
+    <div class="kpis-extended-grid">
+      <div class="kpi-panel-card">
+        <h4>📋 Estado Global de Órdenes</h4>
+        <div class="kpi-metric-row">
+          <span>Órdenes Creadas (Por Aceptar):</span>
+          <strong>{{ totalOrdenesPendientes }}</strong>
+        </div>
+        <div class="kpi-metric-row">
+          <span>Órdenes en Desplazamiento / Ejecución:</span>
+          <strong>{{ totalOrdenesEnCurso }}</strong>
+        </div>
+        <div class="kpi-metric-row">
+          <span>Órdenes Cerradas con Éxito:</span>
+          <strong class="text-success">{{ totalOrdenesCerradas }}</strong>
+        </div>
+        <div class="kpi-metric-row">
+          <span>Total de Órdenes Registradas:</span>
+          <strong>{{ workOrders.length }}</strong>
+        </div>
+      </div>
+
+      <div class="kpi-panel-card">
+        <h4>👨‍🔧 Capacidad de Personal Técnico</h4>
+        <div class="kpi-metric-row">
+          <span>Técnicos Disponibles para Asignar:</span>
+          <strong class="text-success">{{ totalTecnicosDisponibles }}</strong>
+        </div>
+        <div class="kpi-metric-row">
+          <span>Técnicos Ocupados en Trabajos:</span>
+          <strong class="text-warning">{{ totalTecnicosOcupados }}</strong>
+        </div>
+        <div class="kpi-metric-row">
+          <span>Técnicos Inactivos / Licencia:</span>
+          <strong>{{ technicians.length - totalTecnicosDisponibles - totalTecnicosOcupados }}</strong>
+        </div>
+        <div class="kpi-metric-row">
+          <span>Dotación Total de Técnicos:</span>
+          <strong>{{ technicians.length }}</strong>
+        </div>
+      </div>
+
+      <div class="kpi-panel-card">
+        <h4>📦 Catálogo y Repuestos en Stock</h4>
+        <div class="kpi-metric-row">
+          <span>Servicios Técnicos Disponibles:</span>
+          <strong>{{ services.length }}</strong>
+        </div>
+        <div class="kpi-metric-row">
+          <span>Repuestos Registrados:</span>
+          <strong>{{ spareParts.length }}</strong>
+        </div>
+        <div class="kpi-metric-row">
+          <span>Repuestos con Stock Crítico (<= 3):</span>
+          <strong class="text-danger">{{ stockCriticoCount }}</strong>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================= -->
+  <!-- MODAL: ACEPTAR ORDEN Y ASIGNAR TÉCNICO (CASO 6)          -->
+  <!-- ========================================================= -->
+  <div class="modal-backdrop" *ngIf="orderToAssign">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3>🤝 Aceptar Orden #{{ orderToAssign.id }} y Asignar Técnico</h3>
+        <button class="modal-close" (click)="cerrarModalAsignar()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="order-summary-box">
+          <p><strong>Cliente:</strong> Cliente #{{ orderToAssign.customerId }}</p>
+          <p><strong>Descripción:</strong> {{ orderToAssign.description }}</p>
+          <p><strong>Estado Actual:</strong> <span class="status-badge" [ngClass]="getStatusBadgeClass(orderToAssign.status)">{{ orderToAssign.status }}</span></p>
+        </div>
+
+        <div class="form-group" style="margin-top: 15px;">
+          <label><strong>Seleccionar Técnico Disponible: <span class="required">*</span></strong></label>
+          <select [(ngModel)]="selectedTechIdToAssign" class="form-control" style="font-size: 1rem; padding: 10px;">
+            <option [ngValue]="null" disabled>-- Selecciona un técnico --</option>
+            <option *ngFor="let t of technicians" [ngValue]="t.id">
+              {{ t.status === 'DISPONIBLE' ? '🟢' : '🟠' }} {{ t.firstName }} {{ t.lastName }} — {{ t.specialty }} ({{ t.status }})
+            </option>
+          </select>
+          <small class="form-hint" *ngIf="tecnicosDisponibles.length === 0" style="color: #ea580c;">
+            ⚠️ Aviso: Actualmente no hay técnicos marcados como "DISPONIBLE". Puedes asignar a uno ocupado o crear un nuevo técnico.
+          </small>
+        </div>
+
+        <!-- Regla del Caso 6: El stock del repuesto disminuye al asignar la orden -->
+        <div class="form-group" style="margin-top: 15px;">
+          <label><strong>Asignar Repuesto del Catálogo (Opcional):</strong></label>
+          <select [(ngModel)]="selectedPartIdToAssign" class="form-control">
+            <option [ngValue]="null">-- Sin repuesto adicional --</option>
+            <option *ngFor="let p of spareParts" [ngValue]="p.id">
+              {{ p.name }} (Stock disponible: {{ p.stock }}) — Costo: ${{ p.cost | number }}
+            </option>
+          </select>
+          <small class="form-hint">
+            💡 Regla del Caso 6: Al confirmar la asignación, se descontará automáticamente 1 unidad del inventario.
+          </small>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="cerrarModalAsignar()" [disabled]="guardandoAsignacion">
+          Cancelar
+        </button>
+        <button class="btn btn-primary" (click)="confirmarAsignacion()" [disabled]="guardandoAsignacion || !selectedTechIdToAssign">
+          <span *ngIf="!guardandoAsignacion">✅ Confirmar Asignación</span>
+          <span *ngIf="guardandoAsignacion">Asignando técnico...</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- MODAL: CAMBIAR ESTADO DE LA ORDEN DE TRABAJO             -->
+  <!-- ========================================================= -->
+  <div class="modal-backdrop" *ngIf="orderToChangeStatus">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3>🔄 Cambiar Estado de Orden #{{ orderToChangeStatus.id }}</h3>
+        <button class="modal-close" (click)="cerrarModalEstadoOrden()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <p><strong>Descripción:</strong> {{ orderToChangeStatus.description }}</p>
+        <p><strong>Estado Actual:</strong> <span class="status-badge" [ngClass]="getStatusBadgeClass(orderToChangeStatus.status)">{{ getStatusLabel(orderToChangeStatus.status) }}</span></p>
+        <p *ngIf="orderToChangeStatus.technicianId"><strong>Técnico:</strong> {{ getNombreTecnico(orderToChangeStatus.technicianId) }}</p>
+        <p *ngIf="!orderToChangeStatus.technicianId" class="text-danger"><strong>⚠️ Sin técnico asignado</strong></p>
+
+        <div class="form-group" style="margin-top: 15px;">
+          <label><strong>Nuevo Estado:</strong></label>
+          <select [(ngModel)]="selectedNewStatus" class="form-control" style="font-size: 1rem; padding: 10px;">
+            <option value="CREADA">CREADA (Solicitud Registrada)</option>
+            <option value="ASIGNADA">ASIGNADA (Técnico Asignado)</option>
+            <option value="EN_DESPLAZAMIENTO">EN_DESPLAZAMIENTO (Técnico en Camino)</option>
+            <option value="EN_EJECUCION">EN_EJECUCION (En Mantención)</option>
+            <option value="CERRADA">CERRADA (Finalizada con Éxito)</option>
+            <option value="CANCELADA">CANCELADA (Anulada)</option>
+          </select>
+        </div>
+
+        <div *ngIf="selectedNewStatus === 'EN_EJECUCION' && (!orderToChangeStatus.technicianId || orderToChangeStatus.status === 'CREADA')" class="alert-box-warning" style="margin-top: 12px;">
+          ⚠️ <strong>Regla Clave Caso 6:</strong> No se puede pasar a <code>EN_EJECUCIÓN</code> sin haber <code>ASIGNADO</code> un técnico previamente.
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="cerrarModalEstadoOrden()" [disabled]="guardandoCambioEstado">
+          Cancelar
+        </button>
+        <button class="btn btn-primary" (click)="confirmarCambioEstadoOrden()" [disabled]="guardandoCambioEstado">
+          <span *ngIf="!guardandoCambioEstado">Guardar Nuevo Estado</span>
+          <span *ngIf="guardandoCambioEstado">Actualizando...</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- MODAL: REGISTRAR NUEVA ORDEN DE TRABAJO (SUPERVISOR)     -->
+  <!-- ========================================================= -->
+  <div class="modal-backdrop" *ngIf="showCreateOrderModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3>➕ Registrar Nueva Orden de Mantención</h3>
+        <button class="modal-close" (click)="cerrarModalCrearOrden()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label>ID del Cliente Solicitante: <span class="required">*</span></label>
+          <input type="number" [(ngModel)]="newOrder.customerId" min="1" class="form-control" />
+        </div>
+
+        <div class="form-group">
+          <label>Servicio Sugerido del Catálogo (Opcional):</label>
+          <select [(ngModel)]="newOrder.serviceId" (change)="onServiceSelect()" class="form-control">
+            <option [ngValue]="null">-- Seleccionar servicio --</option>
+            <option *ngFor="let s of services" [ngValue]="s.id">
+              {{ s.name }} (${{ s.fee | number }})
+            </option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Descripción de la Falla / Requerimiento: <span class="required">*</span></label>
+          <textarea 
+            [(ngModel)]="newOrder.description" 
+            rows="3" 
+            class="form-control" 
+            placeholder="Ej: Pantalla rota de laptop Dell Inspiron, teclado sin respuesta...">
+          </textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Notas de contacto o dirección:</label>
+          <input 
+            type="text" 
+            [(ngModel)]="newOrder.notes" 
+            class="form-control" 
+            placeholder="Ej: Retiro en taller o visita en Providencia 230" />
+        </div>
+
+        <div class="form-group">
+          <label>Asignar Técnico de Inmediato (Opcional):</label>
+          <select [(ngModel)]="newOrder.technicianId" class="form-control">
+            <option [ngValue]="null">-- Dejar pendiente de asignación (CREADA) --</option>
+            <option *ngFor="let t of tecnicosDisponibles" [ngValue]="t.id">
+              {{ t.firstName }} {{ t.lastName }} ({{ t.specialty }})
+            </option>
+          </select>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="cerrarModalCrearOrden()" [disabled]="guardandoNuevaOrden">
+          Cancelar
+        </button>
+        <button class="btn btn-primary" (click)="guardarNuevaOrden()" [disabled]="guardandoNuevaOrden || !newOrder.description.trim()">
+          <span *ngIf="!guardandoNuevaOrden">🚀 Crear Orden</span>
+          <span *ngIf="guardandoNuevaOrden">Creando orden...</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- MODAL: DETALLE Y SEGUIMIENTO EN VIVO (STEPPER)           -->
+  <!-- ========================================================= -->
+  <div class="modal-backdrop" *ngIf="orderDetail">
+    <div class="modal-dialog modal-large">
+      <div class="modal-header">
+        <h3>📍 Seguimiento de Orden #{{ orderDetail.id }}</h3>
+        <button class="modal-close" (click)="cerrarDetalleOrden()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        
+        <!-- STEPPER DE 5 PASOS -->
+        <div class="stepper-box">
+          <h4 class="stepper-section-title">Progreso del Ciclo de Vida:</h4>
+          
+          <div class="stepper-container">
+            <div 
+              *ngFor="let f of fases; let i = index" 
+              class="step-item"
+              [class.completed]="getPasoActual(orderDetail.status) > f.paso"
+              [class.active]="getPasoActual(orderDetail.status) === f.paso"
+              [class.pending]="getPasoActual(orderDetail.status) < f.paso">
+              
+              <div class="step-line" *ngIf="i > 0"></div>
+
+              <div class="step-circle">
+                <span *ngIf="getPasoActual(orderDetail.status) > f.paso">✓</span>
+                <span *ngIf="getPasoActual(orderDetail.status) <= f.paso">{{ f.icon }}</span>
+              </div>
+
+              <div class="step-info">
+                <span class="step-name">{{ f.titulo }}</span>
+                <small class="step-desc">{{ f.desc }}</small>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DETALLES DE LA ORDEN -->
+        <div class="order-summary-box" style="margin-top: 20px;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <p><strong>N° Orden:</strong> #{{ orderDetail.id }}</p>
+            <p><strong>Cliente:</strong> Cliente #{{ orderDetail.customerId }}</p>
+            <p><strong>Técnico Asignado:</strong> {{ getNombreTecnico(orderDetail.technicianId) }}</p>
+            <p><strong>Estado Actual:</strong> <span class="status-badge" [ngClass]="getStatusBadgeClass(orderDetail.status)">{{ getStatusLabel(orderDetail.status) }}</span></p>
+            <p><strong>Fecha Ingreso:</strong> {{ (orderDetail.createdAt | date:'medium') || 'N/A' }}</p>
+          </div>
+          <div style="margin-top: 10px;">
+            <strong>Descripción del Requerimiento:</strong>
+            <p style="margin: 4px 0 0 0; color: #334155;">{{ orderDetail.description }}</p>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="cerrarDetalleOrden()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- MODAL: CREAR / EDITAR TÉCNICO (CRUD TÉCNICOS)             -->
+  <!-- ========================================================= -->
+  <div class="modal-backdrop" *ngIf="showTechModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 *ngIf="!isEditingTech">➕ Registrar Nuevo Técnico</h3>
+        <h3 *ngIf="isEditingTech">✏️ Editar Técnico #{{ editingTechId }}</h3>
+        <button class="modal-close" (click)="cerrarTechModal()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Nombre: <span class="required">*</span></label>
+            <input type="text" [(ngModel)]="techForm.firstName" placeholder="Ej: Carlos" class="form-control" />
+          </div>
+
+          <div class="form-group">
+            <label>Apellido: <span class="required">*</span></label>
+            <input type="text" [(ngModel)]="techForm.lastName" placeholder="Ej: Mendoza" class="form-control" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Correo Electrónico: <span class="required">*</span></label>
+          <input type="email" [(ngModel)]="techForm.email" placeholder="carlos.mendoza@digitalfix.com" class="form-control" />
+        </div>
+
+        <div class="form-group">
+          <label>Teléfono de Contacto:</label>
+          <input type="text" [(ngModel)]="techForm.phone" placeholder="+56911223344" class="form-control" />
+        </div>
+
+        <div class="form-group">
+          <label>Especialidad Técnica: <span class="required">*</span></label>
+          <input type="text" [(ngModel)]="techForm.specialty" placeholder="Ej: Microelectrónica, Pantallas, Laptops" class="form-control" />
+        </div>
+
+        <div class="form-group">
+          <label>Estado Inicial / Operativo:</label>
+          <select [(ngModel)]="techForm.status" class="form-control">
+            <option value="DISPONIBLE">🟢 DISPONIBLE</option>
+            <option value="OCUPADO">🟠 OCUPADO</option>
+            <option value="INACTIVO">⚪ INACTIVO</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="cerrarTechModal()" [disabled]="guardandoTecnico">
+          Cancelar
+        </button>
+        <button class="btn btn-primary" (click)="guardarTecnico()" [disabled]="guardandoTecnico">
+          <span *ngIf="!guardandoTecnico">Guardar Técnico</span>
+          <span *ngIf="guardandoTecnico">Guardando...</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- MODAL: CONFIRMACIÓN ELIMINAR TÉCNICO                      -->
+  <!-- ========================================================= -->
+  <div class="modal-backdrop" *ngIf="techToDelete">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3>🗑️ Confirmar Eliminación de Técnico</h3>
+        <button class="modal-close" (click)="cancelarEliminarTecnico()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p>¿Estás seguro de que deseas eliminar permanentemente al técnico <strong>{{ techToDelete.firstName }} {{ techToDelete.lastName }}</strong>?</p>
+        <p style="color: #64748b; font-size: 0.85rem;">Esta acción no se puede deshacer.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="cancelarEliminarTecnico()">Cancelar</button>
+        <button class="btn btn-danger" (click)="confirmarEliminarTecnico()">Sí, Eliminar Técnico</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- MODAL: CONFIRMACIÓN ELIMINAR / CANCELAR ORDEN             -->
+  <!-- ========================================================= -->
+  <div class="modal-backdrop" *ngIf="orderToDelete">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3>🗑️ Eliminar / Cancelar Orden #{{ orderToDelete.id }}</h3>
+        <button class="modal-close" (click)="cancelarEliminarOrden()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p>¿Deseas eliminar la orden de mantención <strong>#{{ orderToDelete.id }}</strong> (Cliente #{{ orderToDelete.customerId }})?</p>
+        <p style="color: #64748b; font-size: 0.85rem;">Si la eliminación permanente no está habilitada por política, se cambiará su estado a <code>CANCELADA</code>.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="cancelarEliminarOrden()">Cancelar</button>
+        <button class="btn btn-danger" (click)="confirmarEliminarOrden()">Confirmar Eliminación</button>
+      </div>
+    </div>
+  </div>
+
 </div>

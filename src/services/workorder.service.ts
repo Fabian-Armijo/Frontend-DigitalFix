@@ -58,4 +58,9 @@ export class WorkorderService {
   updateStatus(orderId: number, newStatus: WorkOrderStatus): Observable<WorkOrder> {
     return this.http.patch<WorkOrder>(`${this.baseUrl}/${orderId}/status?newStatus=${newStatus}`, {});
   }
+
+  // Eliminar orden
+  deleteWorkOrder(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/${id}`);
+  }
 }

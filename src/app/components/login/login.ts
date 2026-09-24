@@ -1,22 +1,31 @@
-import { Component } from '@angular/core';
-import { MsalService } from '@azure/msal-angular'; // Importamos el servicio
+import { Component, OnInit, inject } from '@angular/core';
+import { Router, ActivatedRoute } from '@angular/router';
+import { MsalService } from '@azure/msal-angular';
 
 @Component({
   selector: 'app-login',
+  standalone: true,
   templateUrl: './login.html',
   styleUrls: ['./login.scss']
 })
-export class LoginComponent {
+export class LoginComponent implements OnInit {
+  private msalService = inject(MsalService);
+  private router = inject(Router);
+  private route = inject(ActivatedRoute);
 
-  // Inyectamos el servicio de MSAL en el constructor
-  constructor(private msalService: MsalService) { }
+  ngOnInit(): void {
+    // Si ya existe una sesión activa, no mostrar login y redirigir directamente
+    const account = this.msalService.instance.getActiveAccount()
+      || (this.msalService.instance.getAllAccounts().length > 0 ? this.msalService.instance.getAllAccounts()[0] : null);
 
-  onMockLogin(): void {
-    alert('Por favor, utiliza el inicio de sesión oficial con Microsoft Entra ID.');
+    if (account) {
+      const returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/dashboard';
+      this.router.navigateByUrl(returnUrl);
+    }
   }
 
   onMicrosoftLogin(): void {
-    // Esto ejecutará el flujo de redirección hacia Microsoft Entra ID[cite: 1]
+    // Ejecuta el flujo oficial de redirección hacia Microsoft Entra ID
     this.msalService.loginRedirect();
   }
 }

@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MsalService } from '@azure/msal-angular';
 import { CatalogService, TechnicalService, SparePart } from '../../../services/catalog.service';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-catalog',
@@ -64,7 +65,7 @@ export class Catalog implements OnInit {
 
     if (account) {
       this.msalService.acquireTokenSilent({
-        scopes: ['api://e0877608-03e1-4d4b-a0c9-d50d0ddbdb7c/access_as_user'],
+        scopes: [environment.api.scope],
         account: account
       }).subscribe({
         next: (response) => {

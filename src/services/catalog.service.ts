@@ -58,4 +58,9 @@ export class CatalogService {
   deleteSparePart(id: number): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/spare-parts/${id}`);
   }
+
+  // Descontar stock al asignar repuesto a una orden (Rol: Supervisor)
+  reduceStock(id: number, quantity: number): Observable<SparePart> {
+    return this.http.patch<SparePart>(`${this.baseUrl}/spare-parts/${id}/reduce-stock?quantity=${quantity}`, {});
+  }
 }

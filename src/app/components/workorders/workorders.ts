@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { WorkorderService, WorkOrder, WorkOrderStatus } from '../../../services/workorder.service';
 import { CatalogService, TechnicalService } from '../../../services/catalog.service';
+import { environment } from '../../../environments/environment';
 import { MsalService } from '@azure/msal-angular';
 
 @Component({
@@ -87,7 +88,7 @@ export class Workorders implements OnInit {
       this.customerId = this.generarCustomerId(account.username);
 
       this.msalService.acquireTokenSilent({
-        scopes: ['api://e0877608-03e1-4d4b-a0c9-d50d0ddbdb7c/access_as_user'],
+        scopes: [environment.api.scope],
         account: account
       }).subscribe({
         next: (response) => {

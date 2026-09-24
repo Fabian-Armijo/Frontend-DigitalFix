@@ -39,6 +39,22 @@
   }
 }
 
+.login-security-notice {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  padding: 0.85rem 1rem;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+
+  p {
+    margin: 0;
+    font-size: 0.875rem;
+    color: #475569;
+    line-height: 1.45;
+  }
+}
+
 .form-group {
   margin-bottom: 1.25rem;
 

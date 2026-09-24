@@ -31,14 +31,16 @@ export class LayoutComponent implements OnInit {
     if (account) {
       this.userName = account.username;
       this.msalService.acquireTokenSilent({
-        scopes: ['api://e0877608-03e1-4d4b-a0c9-d50d0ddbdb7c/access_as_user'],
+        scopes: [environment.api.scope],
         account: account
       }).subscribe({
         next: (response) => {
           try {
             const payload = JSON.parse(atob(response.accessToken.split('.')[1]));
             if (payload.roles && payload.roles.length > 0) {
-              this.userRole = payload.roles[0].toUpperCase();
+              let r = payload.roles[0].toUpperCase();
+              if (r.startsWith('ROLE_')) r = r.substring(5);
+              this.userRole = r;
             } else {
               this.userRole = 'CLIENTE';
             }
@@ -49,7 +51,13 @@ export class LayoutComponent implements OnInit {
         },
         error: () => {
           const idRoles = (account.idTokenClaims as any)?.roles;
-          this.userRole = (idRoles && idRoles.length > 0) ? idRoles[0].toUpperCase() : 'CLIENTE';
+          if (idRoles && idRoles.length > 0) {
+            let r = idRoles[0].toUpperCase();
+            if (r.startsWith('ROLE_')) r = r.substring(5);
+            this.userRole = r;
+          } else {
+            this.userRole = 'CLIENTE';
+          }
           this.cdr.detectChanges();
         }
       });
