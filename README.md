@@ -51,19 +51,6 @@ Una vez iniciado, abra su navegador web e ingrese a:
 
 ---
 
-## 🔐 Cuentas de Acceso para Pruebas (Microsoft Entra ID)
-
-La aplicación utiliza autenticación corporativa con **Microsoft Entra ID**. Se han configurado cuentas de demostración para evaluar cada uno de los roles del sistema:
-
-| Rol | Cuenta de Acceso | Contraseña | Funcionalidad en la Evaluación |
-| :--- | :--- | :--- | :--- |
-| **`ADMIN`** | `admin@<dominio>.onmicrosoft.com` | *(Ver notas)* | Acceso total al catálogo de servicios y repuestos, gestión de stock, tarifas y métricas. |
-| **`SUPERVISOR`** | `supervisor@<dominio>.onmicrosoft.com` | *(Ver notas)* | Mesa de operaciones: bandeja de órdenes, asignación de técnicos especialistas y avance de fases. |
-| **`CLIENTE 1`** | `cliente1@<dominio>.onmicrosoft.com` | *(Ver notas)* | Portal de autoatención: ingreso de solicitudes de mantención y seguimiento visual con Stepper. |
-| **`CLIENTE 2`** | `cliente2@<dominio>.onmicrosoft.com` | *(Ver notas)* | Demostración de **aislamiento de datos**: solo visualiza sus propias solicitudes (`Orden #1`, etc.). |
-
-> 📌 **Nota sobre credenciales:**  
-> Las contraseñas de las cuentas de prueba institucionales se encuentran detalladas en el **informe de entrega / plataforma académica (Blackboard)**.
 
 ---
 
