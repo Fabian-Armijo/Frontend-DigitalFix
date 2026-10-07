@@ -27,9 +27,7 @@ export function MSALInstanceFactory() {
       redirectUri: environment.msalConfig.auth.redirectUri,
       postLogoutRedirectUri: environment.msalConfig.auth.postLogoutRedirectUri
     },
-    cache: {
-      cacheLocation: BrowserCacheLocation.LocalStorage
-    }
+    
   });
 }
 
